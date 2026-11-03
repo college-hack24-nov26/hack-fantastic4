@@ -22,7 +22,7 @@ def validate_coco(document: dict, image_root: Path | None = None) -> dict:
     annotation_ids = [a.get("id") for a in annotations]
     if any(not isinstance(x, int) or isinstance(x, bool) for x in ids + class_ids + annotation_ids):
         raise ValueError("IDs must be integers")
-    if any(n != 1 for n in (max(Counter(x).values(), default=0) for x in (ids, class_ids, annotation_ids))):
+    if any(n > 1 for n in (max(Counter(x).values(), default=0) for x in (ids, class_ids, annotation_ids))):
         raise ValueError("Duplicate IDs")
     if sorted(class_ids) != list(range(1, len(class_ids) + 1)):
         raise ValueError("Category IDs must be contiguous from 1; class 0 is background")

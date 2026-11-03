@@ -27,6 +27,13 @@ def test_unknown_class_and_duplicate_ids():
         validate_coco(record)
 
 
+def test_empty_split_is_structurally_valid():
+    record = sample()
+    record["images"] = []
+    record["annotations"] = []
+    assert validate_coco(record) == {"images": 0, "annotations": 0, "categories": 1}
+
+
 def test_metric_matching_and_false_negative():
     import torch
     prediction = {"boxes": torch.tensor([[0., 0., 10., 10.], [20., 20., 30., 30.]]), "labels": torch.tensor([1, 1]), "scores": torch.tensor([0.9, 0.8])}
