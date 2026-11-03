@@ -39,7 +39,7 @@ def main():
             prediction = model([image.to(device)])[0]
             predictions.append({key: value.cpu() for key, value in prediction.items()})
             targets.append(target)
-            strata.append(dataset.images[index].get("stratum", "normal"))
+            strata.append(dataset.images[index].get("stratum", "normal_daylight"))
     result = {
         "dataset_type": "user_supplied_held_out",
         "images": len(dataset),

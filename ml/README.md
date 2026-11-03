@@ -2,6 +2,8 @@
 
 This is a local training scaffold, not a trained detector or Android model. No pretrained weights, datasets, or checkpoints are included. Hackathon rules and dataset rights must be confirmed before full training.
 
+Phase 1B dataset candidates, provisional class mapping, split policy, and preparation commands are in [DATASETS.md](DATASETS.md).
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |
