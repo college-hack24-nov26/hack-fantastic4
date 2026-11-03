@@ -12,6 +12,8 @@ The per-image audit and consented-phone fallback are in [RIGHTS_12.md](RIGHTS_12
 
 Team-owned photograph collection, private annotation format, import command, and approved one-step probe instructions are in [ORIGINAL_IMAGES.md](ORIGINAL_IMAGES.md).
 
+The real-data rights gate, Open Images fallback candidate, and explicit training modes are in [REAL_TRAINING.md](REAL_TRAINING.md).
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |

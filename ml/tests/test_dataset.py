@@ -52,6 +52,25 @@ def test_config_refuses_missing_dataset():
         load_config("configs/train.json")
 
 
+def test_training_config_requires_explicit_no_validation(tmp_path):
+    import json
+    from vision_ml.train import load_config
+    config = json.loads(open("configs/first_experiment.json", encoding="utf-8").read())
+    config["train_annotations"] = "private/train.json"
+    config["train_images"] = "private/images"
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="allow_no_validation"):
+        load_config(path)
+    config["allow_no_validation"] = True
+    path.write_text(json.dumps(config), encoding="utf-8")
+    assert load_config(path)["validation_annotations"] is None
+    config["validation_annotations"] = "private/validation.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="both validation paths"):
+        load_config(path)
+
+
 def test_empty_predictions_and_empty_ground_truth():
     import torch
     empty_pred = {"boxes": torch.empty((0, 4)), "labels": torch.empty((0,), dtype=torch.int64), "scores": torch.empty((0,))}
