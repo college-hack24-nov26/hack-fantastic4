@@ -30,6 +30,10 @@ def load_config(path):
         raise ValueError("Invalid training hyperparameters")
     if config.get("early_stopping_patience", 2) < 1:
         raise ValueError("early_stopping_patience must be positive")
+    if not isinstance(config.get("early_stopping_start_epoch", 1), int) or config.get("early_stopping_start_epoch", 1) < 1:
+        raise ValueError("early_stopping_start_epoch must be a positive integer")
+    if not isinstance(config.get("early_stopping_enabled", True), bool):
+        raise ValueError("early_stopping_enabled must be boolean")
     return config
 
 
@@ -39,7 +43,7 @@ def epoch_memory(device):
     return {"peak_allocated_bytes": torch.cuda.max_memory_allocated(), "peak_reserved_bytes": torch.cuda.max_memory_reserved()}
 
 
-def validation_ap50(model, dataset, device, num_classes, score_threshold=0.05, iou_threshold=0.5):
+def validation_metrics(model, dataset, device, num_classes, score_threshold=0.05, iou_threshold=0.5):
     """Internal validation only; this function must never receive held-out test data."""
     model.eval()
     predictions, targets = [], []
@@ -49,14 +53,25 @@ def validation_ap50(model, dataset, device, num_classes, score_threshold=0.05, i
             prediction = model([image.to(device)])[0]
             predictions.append({key: value.cpu() for key, value in prediction.items()})
             targets.append(target)
-    score = detection_metrics(predictions, targets, num_classes, score_threshold, iou_threshold)["map50"]
+    metrics = detection_metrics(predictions, targets, num_classes, score_threshold, iou_threshold)
+    score = metrics["map50"]
     if score is None:
         raise ValueError("Internal validation has no selected-class ground truth")
-    return score
+    return metrics
+
+
+def validation_ap50(model, dataset, device, num_classes, score_threshold=0.05, iou_threshold=0.5):
+    return validation_metrics(model, dataset, device, num_classes, score_threshold, iou_threshold)["map50"]
 
 
 def is_improvement(score, best):
     return score > best + 1e-12
+
+
+def early_stop_count(previous, improved, epoch_number, start_epoch):
+    if epoch_number < start_epoch or improved:
+        return 0
+    return previous + 1
 
 
 def main():
@@ -105,7 +120,8 @@ def main():
                 loss.backward()
                 optimizer.step()
                 losses.append(float(loss.detach()))
-            score = validation_ap50(model, validation, device, config["num_classes_including_background"], config.get("selection_score_threshold", 0.05), config.get("selection_iou_threshold", 0.5)) if validation is not None else None
+            metrics = validation_metrics(model, validation, device, config["num_classes_including_background"], config.get("selection_score_threshold", 0.05), config.get("selection_iou_threshold", 0.5)) if validation is not None else None
+            score = metrics["map50"] if metrics is not None else None
         except torch.cuda.OutOfMemoryError as error:
             print(json.dumps({"status": "cuda_oom", "epoch": epoch + 1, **epoch_memory(device)}), flush=True)
             raise RuntimeError("CUDA out of memory; incomplete epoch was not checkpointed") from error
@@ -116,15 +132,13 @@ def main():
         if validation is not None:
             if improved:
                 best_ap50 = score
-                epochs_without_improvement = 0
-            else:
-                epochs_without_improvement += 1
-        checkpoint = {"model": model.state_dict(), "optimizer": optimizer.state_dict(), "epoch": epoch + 1, "config": config, "categories": categories, "validation_ap50": score, "best_validation_ap50": best_ap50 if validation is not None else None}
+            epochs_without_improvement = early_stop_count(epochs_without_improvement, improved, epoch + 1, config.get("early_stopping_start_epoch", 1))
+        checkpoint = {"model": model.state_dict(), "optimizer": optimizer.state_dict(), "epoch": epoch + 1, "config": config, "categories": categories, "validation_ap50": score, "validation_metrics": metrics, "best_validation_ap50": best_ap50 if validation is not None else None}
         torch.save(checkpoint, output / "last.pt")
         if improved:
             torch.save(checkpoint, output / "best.pt")
-        print(json.dumps({"epoch": epoch + 1, "mean_training_loss": sum(losses) / len(losses), "internal_validation_ap50": score, "validation_status": "measured" if validation is not None else "not_available", "best_validation_ap50": best_ap50 if validation is not None else None, "best_updated": improved, "epoch_seconds": round(elapsed, 3), **epoch_memory(device)}), flush=True)
-        if validation is not None and epochs_without_improvement >= config.get("early_stopping_patience", 2):
+        print(json.dumps({"epoch": epoch + 1, "mean_training_loss": sum(losses) / len(losses), "internal_validation_ap50": score, "validation_per_class": metrics["per_class"] if metrics is not None else None, "validation_status": "measured" if validation is not None else "not_available", "best_validation_ap50": best_ap50 if validation is not None else None, "best_updated": improved, "epoch_seconds": round(elapsed, 3), **epoch_memory(device)}), flush=True)
+        if validation is not None and config.get("early_stopping_enabled", True) and epoch + 1 >= config.get("early_stopping_start_epoch", 1) and epochs_without_improvement >= config.get("early_stopping_patience", 2):
             print(json.dumps({"stopped_early_after_epoch": epoch + 1, "reason": "internal validation AP50 did not improve"}))
             break
 

@@ -83,7 +83,25 @@ def test_empty_predictions_and_empty_ground_truth():
 
 
 def test_checkpoint_selection_rule():
-    from vision_ml.train import is_improvement
+    from vision_ml.train import early_stop_count, is_improvement
     assert is_improvement(0.4, float("-inf"))
     assert is_improvement(0.41, 0.4)
     assert not is_improvement(0.4, 0.4)
+    assert early_stop_count(4, False, 9, 10) == 0
+    assert early_stop_count(0, False, 10, 10) == 1
+    assert early_stop_count(1, False, 11, 10) == 2
+    assert early_stop_count(2, True, 12, 10) == 0
+
+
+def test_early_stopping_configuration(tmp_path):
+    import json
+    from vision_ml.train import load_config
+    config = json.loads(open("configs/first_experiment.json", encoding="utf-8").read())
+    config.update({"train_annotations": "private/train.json", "train_images": "private/images", "validation_annotations": "private/validation.json", "validation_images": "private/images", "early_stopping_start_epoch": 10, "early_stopping_enabled": True})
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    assert load_config(path)["early_stopping_start_epoch"] == 10
+    config["early_stopping_start_epoch"] = 0
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="positive integer"):
+        load_config(path)
