@@ -1,0 +1,56 @@
+# Android and Gradle
+.gradle/
+**/build/
+local.properties
+.idea/
+*.iml
+*.apk
+*.aab
+*.hprof
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ML data and generated outputs
+datasets/
+data/raw/
+data/processed/
+runs/
+checkpoints/
+outputs/
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.tflite
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*credentials*.json
+*service-account*.json
+
+# Private recordings and temporary media
+recordings/
+private-media/
+tmp/
+temp/
+*.wav
+*.mp4
+*.mov
+
+# OS and editor noise
+.DS_Store
+Thumbs.db

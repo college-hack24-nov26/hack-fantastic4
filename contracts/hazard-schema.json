@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vision:contracts:hazard:0.1.0",
+  "title": "Vision hazard event (draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "timestampMs", "kind", "message"],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "timestampMs": { "type": "integer", "minimum": 0 },
+    "kind": { "type": "string", "minLength": 1 },
+    "message": { "type": "string", "minLength": 1 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

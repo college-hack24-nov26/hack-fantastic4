@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vision:contracts:scene:0.1.0",
+  "title": "Vision scene description (draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "timestampMs", "description"],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "timestampMs": { "type": "integer", "minimum": 0 },
+    "description": { "type": "string", "minLength": 1 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}
