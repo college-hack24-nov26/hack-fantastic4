@@ -4,6 +4,8 @@ This is a local training scaffold, not a trained detector or Android model. No p
 
 Phase 1B dataset candidates, provisional class mapping, split policy, and preparation commands are in [DATASETS.md](DATASETS.md).
 
+The proposed Phase 1C.1 COCO subset, experiment settings, rights review, and Android handoff are in [FIRST_EXPERIMENT.md](FIRST_EXPERIMENT.md). `vision_ml.coco_plan` plans image IDs from official annotation metadata without downloading images.
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |

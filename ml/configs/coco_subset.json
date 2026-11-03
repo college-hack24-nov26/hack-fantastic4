@@ -1,0 +1,9 @@
+{
+  "seed": 42,
+  "train_images": 1500,
+  "internal_validation_images": 250,
+  "held_out_val2017_images": 250,
+  "min_images_per_class_in_train": 100,
+  "empty_fraction": 0.1,
+  "allowed_image_license_ids": null
+}
