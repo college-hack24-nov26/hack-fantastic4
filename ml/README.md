@@ -8,6 +8,8 @@ The proposed Phase 1C.1 COCO subset, experiment settings, rights review, and And
 
 The verified COCO annotation endpoint, candidate acquisition manifest, rights limitations, and 12-image probe are recorded in [ACCESS_1C2B.md](ACCESS_1C2B.md). `vision_ml.acquisition_manifest` builds the per-image candidate manifest without downloading images.
 
+The per-image audit and consented-phone fallback are in [RIGHTS_12.md](RIGHTS_12.md). `vision_ml.real_probe` prepares one approved, bounded real-image CUDA step; no real-image probe has run.
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |
