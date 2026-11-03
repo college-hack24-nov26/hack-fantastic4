@@ -6,6 +6,8 @@ Phase 1B dataset candidates, provisional class mapping, split policy, and prepar
 
 The proposed Phase 1C.1 COCO subset, experiment settings, rights review, and Android handoff are in [FIRST_EXPERIMENT.md](FIRST_EXPERIMENT.md). `vision_ml.coco_plan` plans image IDs from official annotation metadata without downloading images.
 
+The verified COCO annotation endpoint, candidate acquisition manifest, rights limitations, and 12-image probe are recorded in [ACCESS_1C2B.md](ACCESS_1C2B.md). `vision_ml.acquisition_manifest` builds the per-image candidate manifest without downloading images.
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |
