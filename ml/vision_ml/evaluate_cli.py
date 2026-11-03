@@ -39,9 +39,9 @@ def main():
             prediction = model([image.to(device)])[0]
             predictions.append({key: value.cpu() for key, value in prediction.items()})
             targets.append(target)
-            strata.append(dataset.images[index].get("stratum", "normal_daylight"))
+            strata.append(dataset.images[index].get("stratum", "unlabeled"))
     result = {
-        "dataset_type": "user_supplied_held_out",
+        "dataset_type": config.get("dataset_type", "user_supplied_held_out"),
         "images": len(dataset),
         "device": str(device),
         "score_threshold": config["score_threshold"],

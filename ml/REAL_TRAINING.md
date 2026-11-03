@@ -6,15 +6,17 @@ The frozen COCO 2017 selection contains 1,500 train, 250 internal-validation, an
 
 ## Open Images V7 acquisition checkpoint
 
-The Phase 1F private proposal under `datasets/openimages_v7_metadata/verified_acquisition_proposal.json` contains **1,131 training, 209 validation, and 199 held-out test images** whose official metadata records CC BY 2.0, an author and source URL, and whose live Flickr page showed CC BY 2.0 and a creator at review time. Records with missing pages or conflicting live licenses were excluded. This is a proposed download, not a dataset already acquired or a guarantee that uploaders own every image. The private acquisition summary records class coverage, attribution, residual privacy/publicity uncertainty, and the exact proposal hash. Download image bodies only after that review is approved.
+The Phase 1F private proposal under `datasets/openimages_v7_metadata/verified_acquisition_proposal.json` contains **1,131 training, 209 validation, and 199 held-out test images** whose official metadata records CC BY 2.0, an author and source URL, and whose live Flickr page showed CC BY 2.0 and a creator at review time. Records with missing pages or conflicting live licenses were excluded. The user approved this exact acquisition after reviewing residual ownership and privacy/publicity uncertainty. One JPEG with unsupported orientation was excluded after download; the private acquired manifest now contains **1,130 train, 209 validation, and 199 held-out test images**. The private summary and manifest retain per-image attribution, links, license, and source review evidence. These records are stronger than metadata alone, but do not guarantee that uploaders own every image.
 
-After approved JPEGs exist under an ignored `datasets/openimages_v7/images/{train,validation,test}/` tree using Open Images IDs as filenames, convert them with:
+Approved JPEGs are under an ignored `datasets/openimages_v7/images/{train,validation,test}/` tree using Open Images IDs as filenames. Convert the acquired set with:
 
 ```powershell
-python -B -m vision_ml.openimages_materialize --manifest datasets/openimages_v7_metadata/verified_acquisition_proposal.json --images-root datasets/openimages_v7/images --output-dir datasets/openimages_v7/prepared
+python -B -m vision_ml.openimages_materialize --manifest datasets/openimages_v7_metadata/acquired_manifest.json --images-root datasets/openimages_v7/images --output-dir datasets/openimages_v7/prepared
 ```
 
 The converter reads no network data. It checks live-rights review status, the five exact Open Images class IDs, JPEG decode and orientation, normalized box geometry, and duplicate bytes across official splits. It assigns safe numeric Vision image IDs, converts boxes to pixel `xywh`, and writes private COCO-format split files plus an integrity report. Inspect overlays and class counts before setting training paths. CVDF images may differ in size from original Flickr uploads, so downloaded image hashes and decoded dimensions are recorded separately; source metadata MD5 is not assumed to match a resized CVDF JPEG.
+
+The first random-initialized training run stopped after three epochs under the validation patience rule. Its best internal-validation AP50 was about **0.0131** and its held-out test mAP50 about **0.0112** at score threshold 0.05. The checkpoint and full measurements remain under ignored `runs/openimages_v7/`. Open Images may leave some visible target objects unboxed; sampled overlays exposed this, so this simplified AP50 is a limited engineering measurement. The model is not suitable for navigation guidance.
 
 ## Training modes
 
