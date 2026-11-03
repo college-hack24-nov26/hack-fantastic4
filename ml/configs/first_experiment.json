@@ -1,0 +1,17 @@
+{
+  "seed": 42,
+  "architecture": "ssdlite320_mobilenet_v3_large",
+  "num_classes_including_background": 6,
+  "batch_size": 2,
+  "epochs": 8,
+  "learning_rate": 0.001,
+  "selection_score_threshold": 0.05,
+  "selection_iou_threshold": 0.5,
+  "early_stopping_patience": 2,
+  "device": "auto",
+  "train_annotations": null,
+  "train_images": null,
+  "validation_annotations": null,
+  "validation_images": null,
+  "output_dir": "runs/first_experiment"
+}

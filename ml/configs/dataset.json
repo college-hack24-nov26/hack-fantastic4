@@ -1,0 +1,14 @@
+{
+  "seed": 42,
+  "split_ratios": {"train": 0.70, "validation": 0.15, "test": 0.15},
+  "source": "coco2017-candidate",
+  "split_policy": "official_train_val_separation; custom grouped splits only within one source partition",
+  "classes": [
+    {"model_id": 1, "name": "person", "coco_id": 1},
+    {"model_id": 2, "name": "bicycle", "coco_id": 2},
+    {"model_id": 3, "name": "motorcycle", "coco_id": 4},
+    {"model_id": 4, "name": "car", "coco_id": 3},
+    {"model_id": 5, "name": "chair", "coco_id": 62}
+  ],
+  "robustness_tags": ["normal_daylight", "low_light", "motion_blur", "camera_tilt", "partial_obstruction", "ultrawide_distortion", "peripheral_objects", "small_distant_objects", "crowded"]
+}

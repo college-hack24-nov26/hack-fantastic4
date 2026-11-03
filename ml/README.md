@@ -2,6 +2,18 @@
 
 This is a local training scaffold, not a trained detector or Android model. No pretrained weights, datasets, or checkpoints are included. Hackathon rules and dataset rights must be confirmed before full training.
 
+Phase 1B dataset candidates, provisional class mapping, split policy, and preparation commands are in [DATASETS.md](DATASETS.md).
+
+The proposed Phase 1C.1 COCO subset, experiment settings, rights review, and Android handoff are in [FIRST_EXPERIMENT.md](FIRST_EXPERIMENT.md). `vision_ml.coco_plan` plans image IDs from official annotation metadata without downloading images.
+
+The verified COCO annotation endpoint, candidate acquisition manifest, rights limitations, and 12-image probe are recorded in [ACCESS_1C2B.md](ACCESS_1C2B.md). `vision_ml.acquisition_manifest` builds the per-image candidate manifest without downloading images.
+
+The per-image audit and consented-phone fallback are in [RIGHTS_12.md](RIGHTS_12.md). `vision_ml.real_probe` prepares one approved, bounded real-image CUDA step; no real-image probe has run.
+
+Team-owned photograph collection, private annotation format, import command, and approved one-step probe instructions are in [ORIGINAL_IMAGES.md](ORIGINAL_IMAGES.md).
+
+The real-data rights gate, Open Images fallback candidate, and explicit training modes are in [REAL_TRAINING.md](REAL_TRAINING.md).
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |

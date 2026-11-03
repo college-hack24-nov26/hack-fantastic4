@@ -27,6 +27,13 @@ def test_unknown_class_and_duplicate_ids():
         validate_coco(record)
 
 
+def test_empty_split_is_structurally_valid():
+    record = sample()
+    record["images"] = []
+    record["annotations"] = []
+    assert validate_coco(record) == {"images": 0, "annotations": 0, "categories": 1}
+
+
 def test_metric_matching_and_false_negative():
     import torch
     prediction = {"boxes": torch.tensor([[0., 0., 10., 10.], [20., 20., 30., 30.]]), "labels": torch.tensor([1, 1]), "scores": torch.tensor([0.9, 0.8])}
@@ -43,3 +50,88 @@ def test_config_refuses_missing_dataset():
     from vision_ml.train import load_config
     with pytest.raises(ValueError, match="approved dataset"):
         load_config("configs/train.json")
+
+
+def test_training_config_requires_explicit_no_validation(tmp_path):
+    import json
+    from vision_ml.train import load_config
+    config = json.loads(open("configs/first_experiment.json", encoding="utf-8").read())
+    config["train_annotations"] = "private/train.json"
+    config["train_images"] = "private/images"
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="allow_no_validation"):
+        load_config(path)
+    config["allow_no_validation"] = True
+    path.write_text(json.dumps(config), encoding="utf-8")
+    assert load_config(path)["validation_annotations"] is None
+    config["validation_annotations"] = "private/validation.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="both validation paths"):
+        load_config(path)
+
+
+def test_empty_predictions_and_empty_ground_truth():
+    import torch
+    empty_pred = {"boxes": torch.empty((0, 4)), "labels": torch.empty((0,), dtype=torch.int64), "scores": torch.empty((0,))}
+    empty_gt = {"boxes": torch.empty((0, 4)), "labels": torch.empty((0,), dtype=torch.int64)}
+    with_gt = {"boxes": torch.tensor([[0., 0., 5., 5.]]), "labels": torch.tensor([1])}
+    missed = detection_metrics([empty_pred], [with_gt], 2)["per_class"][1]
+    assert (missed["tp"], missed["fp"], missed["fn"], missed["recall"], missed["ap50"]) == (0, 0, 1, 0.0, 0.0)
+    absent = detection_metrics([empty_pred], [empty_gt], 2)["per_class"][1]
+    assert absent["fn"] == 0 and absent["recall"] is None and absent["ap50"] is None
+
+
+def test_checkpoint_selection_rule():
+    from vision_ml.train import early_stop_count, is_improvement
+    assert is_improvement(0.4, float("-inf"))
+    assert is_improvement(0.41, 0.4)
+    assert not is_improvement(0.4, 0.4)
+    assert early_stop_count(4, False, 9, 10) == 0
+    assert early_stop_count(0, False, 10, 10) == 1
+    assert early_stop_count(1, False, 11, 10) == 2
+    assert early_stop_count(2, True, 12, 10) == 0
+
+
+def test_early_stopping_configuration(tmp_path):
+    import json
+    from vision_ml.train import load_config
+    config = json.loads(open("configs/first_experiment.json", encoding="utf-8").read())
+    config.update({"train_annotations": "private/train.json", "train_images": "private/images", "validation_annotations": "private/validation.json", "validation_images": "private/images", "early_stopping_start_epoch": 10, "early_stopping_enabled": True})
+    path = tmp_path / "config.json"
+    path.write_text(json.dumps(config), encoding="utf-8")
+    assert load_config(path)["early_stopping_start_epoch"] == 10
+    config["early_stopping_start_epoch"] = 0
+    path.write_text(json.dumps(config), encoding="utf-8")
+    with pytest.raises(ValueError, match="positive integer"):
+        load_config(path)
+
+
+def test_continuation_requires_matching_data_and_optimizer():
+    from vision_ml.train import validate_continuation
+    config = {"architecture": "ssdlite320_mobilenet_v3_large", "num_classes_including_background": 6,
+              "train_annotations": "train.json", "train_images": "train", "validation_annotations": "val.json",
+              "validation_images": "val", "batch_size": 2, "learning_rate": 0.001, "seed": 42, "epochs": 30}
+    categories = [{"id": 1, "name": "person"}]
+    previous = {"config": dict(config), "categories": categories, "optimizer": {},
+                "epoch": 14, "best_validation_ap50": 0.1}
+    assert validate_continuation(previous, config, categories) == 14
+    with pytest.raises(ValueError, match="batch_size"):
+        validate_continuation(previous, {**config, "batch_size": 4}, categories)
+    with pytest.raises(ValueError, match="optimizer"):
+        validate_continuation({key: value for key, value in previous.items() if key != "optimizer"}, config, categories)
+    with pytest.raises(ValueError, match="maximum epochs"):
+        validate_continuation(previous, {**config, "epochs": 14}, categories)
+
+
+def test_optional_postprocess_keeps_classes_separate():
+    import torch
+    from vision_ml.postprocess import filter_detections
+    prediction = {"boxes": torch.tensor([[0., 0., 10., 10.], [1., 1., 11., 11.], [0., 0., 10., 10.]]),
+                  "scores": torch.tensor([0.9, 0.8, 0.7]), "labels": torch.tensor([1, 1, 2])}
+    filtered = filter_detections(prediction, 0.5, 0.4)
+    assert filtered["scores"].tolist() == pytest.approx([0.9, 0.7])
+    assert filtered["labels"].tolist() == [1, 2]
+    assert len(filter_detections(prediction, 0.5, 0.4, 1)["boxes"]) == 1
+    with pytest.raises(ValueError, match="positive integer"):
+        filter_detections(prediction, 0.5, 0.4, 0)

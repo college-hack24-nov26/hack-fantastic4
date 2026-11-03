@@ -1,7 +1,7 @@
 {
   "seed": 42,
   "architecture": "ssdlite320_mobilenet_v3_large",
-  "num_classes_including_background": 2,
+  "num_classes_including_background": 6,
   "batch_size": 2,
   "epochs": 1,
   "learning_rate": 0.001,

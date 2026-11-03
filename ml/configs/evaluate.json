@@ -1,7 +1,7 @@
 {
   "iou_threshold": 0.5,
   "score_threshold": 0.5,
-  "strata": ["normal", "motion_blur", "low_light", "ultrawide"],
+  "strata": ["normal_daylight", "low_light", "motion_blur", "camera_tilt", "partial_obstruction", "ultrawide_distortion", "peripheral_objects", "small_distant_objects", "crowded"],
   "warmup_iterations": 5,
   "timed_iterations": 20,
   "device": "auto"

@@ -9,6 +9,7 @@ import torch
 from .dataset import CocoDetectionDataset
 from .evaluate import detection_metrics, latency_ms
 from .model import make_model
+from .postprocess import filter_detections
 
 
 def main():
@@ -39,9 +40,9 @@ def main():
             prediction = model([image.to(device)])[0]
             predictions.append({key: value.cpu() for key, value in prediction.items()})
             targets.append(target)
-            strata.append(dataset.images[index].get("stratum", "normal"))
+            strata.append(dataset.images[index].get("stratum", "unlabeled"))
     result = {
-        "dataset_type": "user_supplied_held_out",
+        "dataset_type": config.get("dataset_type", "user_supplied_held_out"),
         "images": len(dataset),
         "device": str(device),
         "score_threshold": config["score_threshold"],
@@ -50,6 +51,15 @@ def main():
         "strata": {},
         "checkpoint_bytes": Path(args.checkpoint).stat().st_size,
     }
+    if "operating_score_threshold" in config:
+        operating = [filter_detections(prediction, config["operating_score_threshold"], config["operating_nms_iou_threshold"], config.get("operating_max_detections")) for prediction in predictions]
+        result["operating_point"] = {
+            "score_threshold": config["operating_score_threshold"],
+            "nms_iou_threshold": config["operating_nms_iou_threshold"],
+            "max_detections": config.get("operating_max_detections"),
+            "mean_detections_per_image": sum(len(prediction["boxes"]) for prediction in operating) / len(operating),
+            "metrics": detection_metrics(operating, targets, num_classes, config["operating_score_threshold"], config["iou_threshold"]),
+        }
     for stratum in config["strata"]:
         indices = [index for index, value in enumerate(strata) if value == stratum]
         result["strata"][stratum] = {"images": len(indices), "metrics": detection_metrics([predictions[i] for i in indices], [targets[i] for i in indices], num_classes, config["score_threshold"], config["iou_threshold"]) if indices else None}
