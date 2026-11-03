@@ -105,3 +105,33 @@ def test_early_stopping_configuration(tmp_path):
     path.write_text(json.dumps(config), encoding="utf-8")
     with pytest.raises(ValueError, match="positive integer"):
         load_config(path)
+
+
+def test_continuation_requires_matching_data_and_optimizer():
+    from vision_ml.train import validate_continuation
+    config = {"architecture": "ssdlite320_mobilenet_v3_large", "num_classes_including_background": 6,
+              "train_annotations": "train.json", "train_images": "train", "validation_annotations": "val.json",
+              "validation_images": "val", "batch_size": 2, "learning_rate": 0.001, "seed": 42, "epochs": 30}
+    categories = [{"id": 1, "name": "person"}]
+    previous = {"config": dict(config), "categories": categories, "optimizer": {},
+                "epoch": 14, "best_validation_ap50": 0.1}
+    assert validate_continuation(previous, config, categories) == 14
+    with pytest.raises(ValueError, match="batch_size"):
+        validate_continuation(previous, {**config, "batch_size": 4}, categories)
+    with pytest.raises(ValueError, match="optimizer"):
+        validate_continuation({key: value for key, value in previous.items() if key != "optimizer"}, config, categories)
+    with pytest.raises(ValueError, match="maximum epochs"):
+        validate_continuation(previous, {**config, "epochs": 14}, categories)
+
+
+def test_optional_postprocess_keeps_classes_separate():
+    import torch
+    from vision_ml.postprocess import filter_detections
+    prediction = {"boxes": torch.tensor([[0., 0., 10., 10.], [1., 1., 11., 11.], [0., 0., 10., 10.]]),
+                  "scores": torch.tensor([0.9, 0.8, 0.7]), "labels": torch.tensor([1, 1, 2])}
+    filtered = filter_detections(prediction, 0.5, 0.4)
+    assert filtered["scores"].tolist() == pytest.approx([0.9, 0.7])
+    assert filtered["labels"].tolist() == [1, 2]
+    assert len(filter_detections(prediction, 0.5, 0.4, 1)["boxes"]) == 1
+    with pytest.raises(ValueError, match="positive integer"):
+        filter_detections(prediction, 0.5, 0.4, 0)

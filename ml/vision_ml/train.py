@@ -3,6 +3,7 @@
 import argparse
 import json
 import random
+import shutil
 from pathlib import Path
 from time import perf_counter
 
@@ -34,6 +35,8 @@ def load_config(path):
         raise ValueError("early_stopping_start_epoch must be a positive integer")
     if not isinstance(config.get("early_stopping_enabled", True), bool):
         raise ValueError("early_stopping_enabled must be boolean")
+    if config.get("continuation_checkpoint") is not None and not isinstance(config["continuation_checkpoint"], str):
+        raise ValueError("continuation_checkpoint must be a path string")
     return config
 
 
@@ -74,6 +77,21 @@ def early_stop_count(previous, improved, epoch_number, start_epoch):
     return previous + 1
 
 
+def validate_continuation(previous, config, categories):
+    old_config = previous["config"]
+    for key in ("architecture", "num_classes_including_background", "train_annotations", "train_images", "validation_annotations", "validation_images", "batch_size", "learning_rate", "seed"):
+        if old_config.get(key) != config.get(key):
+            raise ValueError(f"Continuation differs from checkpoint: {key}")
+    if previous["categories"] != categories or "optimizer" not in previous:
+        raise ValueError("Continuation checkpoint lacks matching categories or optimizer state")
+    start_epoch = previous["epoch"]
+    if not 1 <= start_epoch < config["epochs"]:
+        raise ValueError("Continuation epoch must precede configured maximum epochs")
+    if config.get("validation_annotations") and previous.get("best_validation_ap50") is None:
+        raise ValueError("Continuation checkpoint lacks best validation AP50")
+    return start_epoch
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", required=True)
@@ -102,7 +120,18 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     best_ap50 = float("-inf")
     epochs_without_improvement = 0
-    for epoch in range(config["epochs"]):
+    start_epoch = 0
+    if config.get("continuation_checkpoint"):
+        source = Path(config["continuation_checkpoint"])
+        previous = torch.load(source, map_location="cpu", weights_only=True)
+        start_epoch = validate_continuation(previous, config, categories)
+        model.load_state_dict(previous["model"])
+        optimizer.load_state_dict(previous["optimizer"])
+        best_ap50 = previous.get("best_validation_ap50")
+        if validation is not None:
+            shutil.copyfile(source, output / "best.pt")
+        print(json.dumps({"continuation_checkpoint": str(source), "source_epoch": start_epoch, "optimizer_state_loaded": True, "exact_rng_resume": False}), flush=True)
+    for epoch in range(start_epoch, config["epochs"]):
         model.train()
         losses = []
         if device.type == "cuda":
