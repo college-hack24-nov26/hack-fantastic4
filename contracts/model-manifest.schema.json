@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:vision:contracts:model-manifest:0.1.0",
+  "title": "Vision model manifest (draft)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "modelVersion", "artifact"],
+  "properties": {
+    "schemaVersion": { "const": "0.1.0" },
+    "modelVersion": { "type": "string", "minLength": 1 },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fileName", "sha256"],
+      "properties": {
+        "fileName": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+      }
+    }
+  }
+}
