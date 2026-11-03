@@ -1,0 +1,5 @@
+# Tested locally with Python 3.14.6; install a mutually compatible torch/torchvision pair.
+torch==2.14.0
+torchvision==0.29.0
+Pillow==12.3.0
+pytest==9.1.1

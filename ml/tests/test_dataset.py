@@ -1,0 +1,45 @@
+import pytest
+
+from vision_ml.dataset import validate_coco
+from vision_ml.evaluate import detection_metrics
+
+
+def sample():
+    return {"images": [{"id": 1, "file_name": "a.png", "width": 32, "height": 32}], "categories": [{"id": 1, "name": "synthetic"}], "annotations": [{"id": 1, "image_id": 1, "category_id": 1, "bbox": [2, 3, 10, 8]}]}
+
+
+def test_valid_and_bad_boxes():
+    record = sample()
+    assert validate_coco(record)["annotations"] == 1
+    record["annotations"][0]["bbox"] = [30, 3, 10, 8]
+    with pytest.raises(ValueError, match="bbox"):
+        validate_coco(record)
+
+
+def test_unknown_class_and_duplicate_ids():
+    record = sample()
+    record["annotations"][0]["category_id"] = 9
+    with pytest.raises(ValueError, match="unknown"):
+        validate_coco(record)
+    record = sample()
+    record["images"].append(dict(record["images"][0]))
+    with pytest.raises(ValueError, match="Duplicate"):
+        validate_coco(record)
+
+
+def test_metric_matching_and_false_negative():
+    import torch
+    prediction = {"boxes": torch.tensor([[0., 0., 10., 10.], [20., 20., 30., 30.]]), "labels": torch.tensor([1, 1]), "scores": torch.tensor([0.9, 0.8])}
+    target = {"boxes": torch.tensor([[0., 0., 10., 10.], [12., 12., 17., 17.]]), "labels": torch.tensor([1, 1])}
+    result = detection_metrics([prediction], [target], 2)
+    assert result["per_class"][1]["tp"] == 1
+    assert result["per_class"][1]["fp"] == 1
+    assert result["per_class"][1]["fn"] == 1
+    assert result["per_class"][1]["precision"] == 0.5
+    assert result["per_class"][1]["recall"] == 0.5
+
+
+def test_config_refuses_missing_dataset():
+    from vision_ml.train import load_config
+    with pytest.raises(ValueError, match="approved dataset"):
+        load_config("configs/train.json")
