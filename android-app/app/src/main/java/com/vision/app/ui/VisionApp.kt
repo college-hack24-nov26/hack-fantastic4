@@ -94,7 +94,7 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
             )
         }
         composable(Destination.Camera) {
-            CameraPreviewScreen(strings, onBack = { navController.popBackStack() })
+            CameraPreviewScreen(strings, state.language, onBack = { navController.popBackStack() })
         }
     }
 }
