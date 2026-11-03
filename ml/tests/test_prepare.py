@@ -28,6 +28,9 @@ def test_class_remap_and_empty_images(tmp_path):
     path = tmp_path / "selected.json"
     path.write_text(json.dumps(selected), encoding="utf-8")
     loaded = CocoDetectionDataset(path, tmp_path)
+    _, mapped_target = loaded[0]
+    assert mapped_target["boxes"].tolist() == [[1.0, 2.0, 4.0, 6.0]]
+    assert mapped_target["labels"].tolist() == [2]
     _, empty_target = loaded[1]
     assert empty_target["boxes"].shape == (0, 4)
 
