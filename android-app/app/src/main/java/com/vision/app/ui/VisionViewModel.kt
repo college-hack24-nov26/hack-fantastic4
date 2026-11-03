@@ -1,12 +1,15 @@
 package com.vision.app.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.vision.app.domain.safety.NoOpSafetyPolicy
 import com.vision.app.domain.safety.SafetyPolicy
 import com.vision.app.domain.vision.MockVisionEngine
 import com.vision.app.domain.vision.VisionEngine
 import com.vision.app.domain.vision.VisionObservation
+import com.vision.app.settings.UiLanguage
+import com.vision.app.settings.VisionPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -14,18 +17,27 @@ import kotlinx.coroutines.launch
 
 data class VisionUiState(
     val onboardingPage: Int = 0,
-    val languageTag: String = "en-IN",
+    val language: UiLanguage = UiLanguage.English,
     val speechRate: Float = 1f,
+    val preferencesLoaded: Boolean = false,
     val observation: VisionObservation? = null,
     val isLoading: Boolean = false,
 )
 
-class VisionViewModel(
-    private val engine: VisionEngine = MockVisionEngine(),
-    private val safetyPolicy: SafetyPolicy = NoOpSafetyPolicy(),
-) : ViewModel() {
+class VisionViewModel(application: Application) : AndroidViewModel(application) {
+    private val engine: VisionEngine = MockVisionEngine()
+    private val safetyPolicy: SafetyPolicy = NoOpSafetyPolicy()
+    private val preferences = VisionPreferencesRepository.from(application)
     private val mutableState = MutableStateFlow(VisionUiState())
     val state = mutableState.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            preferences.preferences.collect { saved ->
+                mutableState.update { it.copy(language = saved.language, speechRate = saved.speechRate, preferencesLoaded = true) }
+            }
+        }
+    }
 
     fun nextOnboardingPage(): Boolean {
         val current = mutableState.value.onboardingPage
@@ -41,12 +53,15 @@ class VisionViewModel(
         return true
     }
 
-    fun setLanguage(tag: String) {
-        mutableState.update { it.copy(languageTag = tag) }
+    fun setLanguage(language: UiLanguage) {
+        mutableState.update { it.copy(language = language) }
+        viewModelScope.launch { preferences.setLanguage(language) }
     }
 
     fun setSpeechRate(rate: Float) {
-        mutableState.update { it.copy(speechRate = rate.coerceIn(0.7f, 1.3f)) }
+        val bounded = rate.coerceIn(0.7f, 1.3f)
+        mutableState.update { it.copy(speechRate = bounded) }
+        viewModelScope.launch { preferences.setSpeechRate(bounded) }
     }
 
     fun loadMockObservation() {

@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.vision.app.ui.theme.VisionColors
@@ -37,16 +38,16 @@ import com.vision.app.ui.theme.VisionSpacing
 
 @Composable
 fun ScreenFrame(content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(VisionColors.Background)
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = VisionSpacing.Large, vertical = VisionSpacing.ExtraLarge),
-        verticalArrangement = Arrangement.spacedBy(VisionSpacing.Large),
-        content = content,
-    )
+    Surface(modifier = Modifier.fillMaxSize(), color = VisionColors.Background, contentColor = VisionColors.Cream) {
+        Column(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = VisionSpacing.Large, vertical = VisionSpacing.ExtraLarge),
+            verticalArrangement = Arrangement.spacedBy(VisionSpacing.Large),
+            content = content,
+        )
+    }
 }
 
 @Composable
@@ -66,8 +67,9 @@ fun VisionButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifie
 }
 
 @Composable
-fun VisionTextButton(text: String, onClick: () -> Unit) {
-    TextButton(onClick = onClick, modifier = Modifier.heightIn(min = 48.dp)) {
+fun VisionTextButton(text: String, onClick: () -> Unit, selected: Boolean? = null) {
+    val modifier = if (selected == null) Modifier else Modifier.semantics { this.selected = selected }
+    TextButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp)) {
         Text(text, color = VisionColors.Cream, style = MaterialTheme.typography.labelLarge)
     }
 }
@@ -77,6 +79,7 @@ fun VisionCard(modifier: Modifier = Modifier, content: @Composable ColumnScope.(
     Surface(
         modifier = modifier.fillMaxWidth(),
         color = VisionColors.Surface,
+        contentColor = VisionColors.Cream,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
     ) {
         Column(
@@ -102,9 +105,9 @@ fun WaveMark(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun StepDots(current: Int, count: Int) {
+fun StepDots(current: Int, count: Int, description: String) {
     Row(
-        modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Step ${current + 1} of $count" },
+        modifier = Modifier.fillMaxWidth().semantics { contentDescription = description },
         horizontalArrangement = Arrangement.Center,
     ) {
         repeat(count) { index ->

@@ -15,10 +15,10 @@ object VisionColors {
     val Background = Color(0xFF171615)
     val Surface = Color(0xFF292725)
     val SurfaceRaised = Color(0xFF34312E)
-    val Cream = Color(0xFFF7EFE6)
-    val MutedCream = Color(0xFFD5C9BE)
+    val Cream = Color(0xFFFFF2E4)
+    val MutedCream = Color(0xFFE4D7C9)
     val Outline = Color(0xFF645C55)
-    val CharcoalText = Color(0xFF171615)
+    val CharcoalText = Background
 }
 
 object VisionSpacing {

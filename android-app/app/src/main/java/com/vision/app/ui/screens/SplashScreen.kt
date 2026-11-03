@@ -17,10 +17,11 @@ import androidx.compose.ui.unit.dp
 import com.vision.app.ui.components.ScreenFrame
 import com.vision.app.ui.components.VisionButton
 import com.vision.app.ui.components.WaveMark
+import com.vision.app.ui.VisionStrings
 import com.vision.app.ui.theme.VisionColors
 
 @Composable
-fun SplashScreen(onGetStarted: () -> Unit) {
+fun SplashScreen(strings: VisionStrings, onGetStarted: () -> Unit) {
     ScreenFrame {
         Spacer(Modifier.height(72.dp))
         Column(
@@ -30,22 +31,22 @@ fun SplashScreen(onGetStarted: () -> Unit) {
         ) {
             WaveMark()
             Text("Vision", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.displayLarge)
-            Text("Beyond sight, through intelligence.", style = MaterialTheme.typography.bodyLarge, color = VisionColors.MutedCream, textAlign = TextAlign.Center)
+            Text(strings.tagline, style = MaterialTheme.typography.bodyLarge, color = VisionColors.MutedCream, textAlign = TextAlign.Center)
         }
         Spacer(Modifier.height(64.dp))
         Text(
-            "A voice-first companion for exploring your surroundings.",
+            strings.splashIntro,
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.titleLarge,
             textAlign = TextAlign.Center,
         )
         Text(
-            "This early build demonstrates the interface. Visual assistance is not active yet.",
+            strings.splashNote,
             modifier = Modifier.fillMaxWidth(),
             style = MaterialTheme.typography.bodyMedium,
             color = VisionColors.MutedCream,
             textAlign = TextAlign.Center,
         )
-        VisionButton("Get started", onGetStarted)
+        VisionButton(strings.getStarted, onGetStarted)
     }
 }

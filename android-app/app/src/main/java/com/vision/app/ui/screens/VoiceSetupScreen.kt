@@ -5,16 +5,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vision.app.ui.components.ScreenFrame
@@ -24,48 +27,77 @@ import com.vision.app.ui.components.VisionTextButton
 import com.vision.app.ui.components.WaveMark
 import com.vision.app.ui.theme.VisionColors
 import com.vision.app.voice.AndroidVoiceOutput
+import com.vision.app.settings.UiLanguage
+import com.vision.app.ui.VisionStrings
 
 @Composable
 fun VoiceSetupScreen(
-    languageTag: String,
+    language: UiLanguage,
+    strings: VisionStrings,
     speechRate: Float,
-    onLanguageChange: (String) -> Unit,
+    onLanguageChange: (UiLanguage) -> Unit,
     onSpeechRateChange: (Float) -> Unit,
     onContinue: () -> Unit,
 ) {
     val context = LocalContext.current
     val output = remember(context) { AndroidVoiceOutput(context) }
     val isReady by output.ready.collectAsStateWithLifecycle()
-    var previewMessage by remember { mutableStateOf("Voice preview uses an installed offline voice when available.") }
+    val inventory by output.inventory.collectAsStateWithLifecycle()
+    var previewMessage by remember { mutableStateOf<String?>(null) }
+    var showAllVoices by rememberSaveable { mutableStateOf(false) }
     DisposableEffect(output) { onDispose { output.close() } }
 
     ScreenFrame {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { WaveMark() }
-        Text("Set up your voice", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
-        Text("Choose a voice preview that feels comfortable.", style = MaterialTheme.typography.bodyLarge, color = VisionColors.MutedCream)
+        Text(strings.voiceTitle, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
+        Text(strings.voiceIntro, style = MaterialTheme.typography.bodyLarge, color = VisionColors.MutedCream)
         VisionCard {
-            Text("Language", style = MaterialTheme.typography.titleLarge)
-            Text(if (languageTag == "en-IN") "English (India)" else "English (United States)", style = MaterialTheme.typography.bodyLarge)
-            VisionTextButton("Change language", onClick = {
-                onLanguageChange(if (languageTag == "en-IN") "en-US" else "en-IN")
-            })
+            Text(strings.language, style = MaterialTheme.typography.titleLarge)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                VisionTextButton(strings.english, { onLanguageChange(UiLanguage.English) }, selected = language == UiLanguage.English)
+                VisionTextButton(strings.hinglish, { onLanguageChange(UiLanguage.Hinglish) }, selected = language == UiLanguage.Hinglish)
+            }
+            Text(if (language == UiLanguage.English) strings.english else strings.hinglish, style = MaterialTheme.typography.bodyLarge)
         }
         VisionCard {
-            Text("Speech speed", style = MaterialTheme.typography.titleLarge)
+            Text(strings.speechSpeed, style = MaterialTheme.typography.titleLarge)
             Slider(
+                modifier = Modifier.semantics { contentDescription = strings.speechSpeed },
                 value = speechRate,
                 onValueChange = onSpeechRateChange,
                 valueRange = 0.7f..1.3f,
+                colors = SliderDefaults.colors(
+                    thumbColor = VisionColors.Cream,
+                    activeTrackColor = VisionColors.Cream,
+                    inactiveTrackColor = VisionColors.Outline,
+                ),
             )
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Slower", style = MaterialTheme.typography.bodyMedium)
-                Text("Faster", style = MaterialTheme.typography.bodyMedium)
+                Text(strings.slower, style = MaterialTheme.typography.bodyMedium)
+                Text(strings.faster, style = MaterialTheme.typography.bodyMedium)
             }
         }
-        VisionButton("Test voice", onClick = {
-            previewMessage = if (output.preview(languageTag, speechRate)) "Playing offline voice preview." else "An offline voice for this language is unavailable on this device."
+        VisionButton(strings.testEnglish, onClick = {
+            val attempt = output.preview(hinglish = false, speechRate = speechRate)
+            previewMessage = if (attempt.queued) "${strings.voiceQueued} ${attempt.selectedVoice?.name} (${attempt.selectedVoice?.locale})" else strings.voiceUnavailable
         }, enabled = isReady)
-        Text(previewMessage, style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream)
-        VisionButton("Continue", onContinue)
+        VisionButton(strings.testHinglish, onClick = {
+            val attempt = output.preview(hinglish = true, speechRate = speechRate)
+            previewMessage = if (attempt.queued) "${strings.voiceQueued} ${attempt.selectedVoice?.name} (${attempt.selectedVoice?.locale})" else strings.voiceUnavailable
+        }, enabled = isReady)
+        Text(previewMessage ?: if (isReady) strings.voiceInitial else strings.voiceLoading, style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream)
+        VisionCard {
+            Text(strings.voiceInventory, style = MaterialTheme.typography.titleLarge)
+            Text(inventory.engine ?: "—", style = MaterialTheme.typography.bodyMedium)
+            Text(strings.voiceOfflineNote, style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream)
+            if (inventory.voices.isEmpty()) Text(strings.noOfflineVoices)
+            (if (showAllVoices) inventory.voices else inventory.voices.take(3)).forEach { voice ->
+                Text("${voice.locale}: ${voice.name} (quality ${voice.quality})", style = MaterialTheme.typography.bodyMedium)
+            }
+            if (inventory.voices.size > 3) {
+                VisionTextButton(if (showAllVoices) strings.showFewerVoices else strings.showAllVoices, onClick = { showAllVoices = !showAllVoices })
+            }
+        }
+        VisionButton(strings.continueLabel, onContinue)
     }
 }

@@ -10,29 +10,30 @@ import com.vision.app.ui.components.ScreenFrame
 import com.vision.app.ui.components.VisionButton
 import com.vision.app.ui.components.VisionCard
 import com.vision.app.ui.theme.VisionColors
+import com.vision.app.ui.VisionStrings
 
 @Composable
-fun PermissionsScreen(onContinue: () -> Unit) {
+fun PermissionsScreen(strings: VisionStrings, onContinue: () -> Unit) {
     ScreenFrame {
-        Text("Permissions", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
+        Text(strings.permissions, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
         Text(
-            "Vision will ask only for access needed by a feature when you choose to use it.",
+            strings.permissionsIntro,
             style = MaterialTheme.typography.bodyLarge,
             color = VisionColors.MutedCream,
         )
         VisionCard {
-            Text("Camera", style = MaterialTheme.typography.titleLarge)
-            Text("Future live view will need camera access. This build does not open the camera or request permission.", style = MaterialTheme.typography.bodyMedium)
+            Text(strings.camera, style = MaterialTheme.typography.titleLarge)
+            Text(strings.cameraNote, style = MaterialTheme.typography.bodyMedium)
         }
         VisionCard {
-            Text("Microphone", style = MaterialTheme.typography.titleLarge)
-            Text("Future voice commands may need microphone access. Voice preview uses speech output only.", style = MaterialTheme.typography.bodyMedium)
+            Text(strings.microphone, style = MaterialTheme.typography.titleLarge)
+            Text(strings.microphoneNote, style = MaterialTheme.typography.bodyMedium)
         }
         Text(
-            "You can continue without granting permissions.",
+            strings.permissionsEnd,
             style = MaterialTheme.typography.bodyMedium,
             color = VisionColors.MutedCream,
         )
-        VisionButton("Continue", onContinue)
+        VisionButton(strings.continueLabel, onContinue)
     }
 }

@@ -12,33 +12,41 @@ import com.vision.app.ui.components.VisionButton
 import com.vision.app.ui.components.VisionCard
 import com.vision.app.ui.components.VisionTextButton
 import com.vision.app.ui.theme.VisionColors
+import com.vision.app.ui.VisionStrings
+import com.vision.app.settings.UiLanguage
 
 @Composable
 fun ActiveAssistantScreen(
     observation: VisionObservation?,
+    strings: VisionStrings,
+    language: UiLanguage,
+    speechRate: Float,
+    onLanguageChange: (UiLanguage) -> Unit,
+    onRateChange: (Float) -> Unit,
     isLoading: Boolean,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
 ) {
     ScreenFrame {
-        VisionTextButton("Back to home", onBack)
-        Text("Demo assistant", modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
+        VisionTextButton(strings.assistantBack, onBack)
+        Text(strings.assistantTitle, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
         VisionCard {
-            Text("SIMULATED CONTENT", style = MaterialTheme.typography.titleLarge, color = VisionColors.Cream)
+            Text(strings.simulated, style = MaterialTheme.typography.titleLarge, color = VisionColors.Cream)
             Text(
-                "No camera, detection model, or safety warning system is running.",
+                strings.assistantWarning,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        Text("Sample observation", style = MaterialTheme.typography.titleLarge)
+        VoiceAssistantPanel(strings, language, speechRate, onLanguageChange, onRateChange)
+        Text(strings.sampleTitle, style = MaterialTheme.typography.titleLarge)
         Text(
-            if (isLoading) "Loading sample…" else observation?.description ?: "Tap the button to load a sample observation.",
+            if (isLoading) strings.sampleLoading else if (observation == null) strings.sampleEmpty else if (observation.isSimulated) strings.sampleDescription else observation.description,
             style = MaterialTheme.typography.bodyLarge,
             color = VisionColors.MutedCream,
         )
-        VisionButton("Refresh sample", onRefresh, enabled = !isLoading)
+        VisionButton(strings.refreshSample, onRefresh, enabled = !isLoading)
         Text(
-            "This demo cannot judge whether an obstacle or route is safe.",
+            strings.assistantCaution,
             style = MaterialTheme.typography.bodyMedium,
             color = VisionColors.MutedCream,
         )

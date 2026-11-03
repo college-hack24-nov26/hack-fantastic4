@@ -1,6 +1,9 @@
 package com.vision.app.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -12,6 +15,8 @@ import com.vision.app.ui.screens.OnboardingScreen
 import com.vision.app.ui.screens.PermissionsScreen
 import com.vision.app.ui.screens.SplashScreen
 import com.vision.app.ui.screens.VoiceSetupScreen
+import com.vision.app.ui.screens.CameraPreviewScreen
+import com.vision.app.ui.theme.VisionColors
 
 internal object Destination {
     const val Splash = "splash"
@@ -20,20 +25,27 @@ internal object Destination {
     const val VoiceSetup = "voice_setup"
     const val Home = "home"
     const val Assistant = "assistant"
+    const val Camera = "camera"
 }
 
 @Composable
 fun VisionApp(viewModel: VisionViewModel = viewModel()) {
     val navController = rememberNavController()
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    if (!state.preferencesLoaded) {
+        Surface(Modifier.fillMaxSize(), color = VisionColors.Background) {}
+        return
+    }
+    val strings = VisionStrings.forLanguage(state.language)
 
     NavHost(navController = navController, startDestination = Destination.Splash) {
         composable(Destination.Splash) {
-            SplashScreen(onGetStarted = { navController.navigate(Destination.Onboarding) })
+            SplashScreen(strings, onGetStarted = { navController.navigate(Destination.Onboarding) })
         }
         composable(Destination.Onboarding) {
             OnboardingScreen(
                 page = state.onboardingPage,
+                strings = strings,
                 onBack = {
                     if (!viewModel.previousOnboardingPage()) navController.popBackStack()
                 },
@@ -44,23 +56,26 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
             )
         }
         composable(Destination.Permissions) {
-            PermissionsScreen(onContinue = { navController.navigate(Destination.VoiceSetup) })
+            PermissionsScreen(strings, onContinue = { navController.navigate(Destination.VoiceSetup) })
         }
         composable(Destination.VoiceSetup) {
             VoiceSetupScreen(
-                languageTag = state.languageTag,
+                language = state.language,
+                strings = strings,
                 speechRate = state.speechRate,
                 onLanguageChange = viewModel::setLanguage,
                 onSpeechRateChange = viewModel::setSpeechRate,
                 onContinue = {
-                    navController.navigate(Destination.Home) {
-                        popUpTo(Destination.Splash) { inclusive = true }
+                    if (!navController.popBackStack(Destination.Home, inclusive = false)) {
+                        navController.navigate(Destination.Home) {
+                            popUpTo(Destination.Splash) { inclusive = true }
+                        }
                     }
                 },
             )
         }
         composable(Destination.Home) {
-            HomeScreen(onStart = {
+            HomeScreen(strings, state.language, viewModel::setLanguage, onSettings = { navController.navigate(Destination.VoiceSetup) }, onCamera = { navController.navigate(Destination.Camera) }, onStart = {
                 viewModel.loadMockObservation()
                 navController.navigate(Destination.Assistant)
             })
@@ -68,10 +83,18 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
         composable(Destination.Assistant) {
             ActiveAssistantScreen(
                 observation = state.observation,
+                strings = strings,
+                language = state.language,
+                speechRate = state.speechRate,
+                onLanguageChange = viewModel::setLanguage,
+                onRateChange = viewModel::setSpeechRate,
                 isLoading = state.isLoading,
                 onRefresh = viewModel::loadMockObservation,
                 onBack = { navController.popBackStack() },
             )
+        }
+        composable(Destination.Camera) {
+            CameraPreviewScreen(strings, onBack = { navController.popBackStack() })
         }
     }
 }

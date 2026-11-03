@@ -20,47 +20,28 @@ import com.vision.app.ui.components.VisionButton
 import com.vision.app.ui.components.VisionTextButton
 import com.vision.app.ui.components.WaveMark
 import com.vision.app.ui.theme.VisionColors
-
-private data class OnboardingCopy(val title: String, val body: String, val detail: String)
-
-private val pages = listOf(
-    OnboardingCopy(
-        "Carry Vision comfortably",
-        "Keep your phone secure and its camera unobstructed when visual assistance becomes available.",
-        "Camera setup and device support will be checked before use.",
-    ),
-    OnboardingCopy(
-        "Hear useful context",
-        "Vision is designed to speak concise observations and let you ask for more detail.",
-        "Speech output can be previewed during setup.",
-    ),
-    OnboardingCopy(
-        "Stay in control",
-        "Use large touch controls and TalkBack throughout the experience.",
-        "The current assistant screen shows sample content only.",
-    ),
-)
+import com.vision.app.ui.VisionStrings
 
 @Composable
-fun OnboardingScreen(page: Int, onBack: () -> Unit, onNext: () -> Unit, onSkip: () -> Unit) {
-    val copy = pages[page.coerceIn(pages.indices)]
+fun OnboardingScreen(page: Int, strings: VisionStrings, onBack: () -> Unit, onNext: () -> Unit, onSkip: () -> Unit) {
+    val copy = strings.onboarding[page.coerceIn(strings.onboarding.indices)]
     ScreenFrame {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            VisionTextButton("Back", onBack)
-            VisionTextButton("Skip", onSkip)
+            VisionTextButton(strings.back, onBack)
+            VisionTextButton(strings.skip, onSkip)
         }
-        StepDots(page, pages.size)
+        StepDots(page, strings.onboarding.size, strings.stepOf(page + 1, strings.onboarding.size))
         Spacer(Modifier.height(36.dp))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) { WaveMark() }
         Spacer(Modifier.height(20.dp))
-        Text(copy.title, modifier = Modifier.fillMaxWidth().semantics { heading() }, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
-        Text(copy.body, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge, color = VisionColors.MutedCream, textAlign = TextAlign.Center)
-        Text(copy.detail, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream, textAlign = TextAlign.Center)
+        Text(copy.first, modifier = Modifier.fillMaxWidth().semantics { heading() }, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
+        Text(copy.second, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyLarge, color = VisionColors.MutedCream, textAlign = TextAlign.Center)
+        Text(copy.third, modifier = Modifier.fillMaxWidth(), style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream, textAlign = TextAlign.Center)
         Spacer(Modifier.height(48.dp))
-        VisionButton(if (page == pages.lastIndex) "Continue" else "Next", onNext)
+        VisionButton(if (page == strings.onboarding.lastIndex) strings.continueLabel else strings.next, onNext)
     }
 }
