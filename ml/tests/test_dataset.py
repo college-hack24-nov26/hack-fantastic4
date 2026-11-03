@@ -43,3 +43,21 @@ def test_config_refuses_missing_dataset():
     from vision_ml.train import load_config
     with pytest.raises(ValueError, match="approved dataset"):
         load_config("configs/train.json")
+
+
+def test_empty_predictions_and_empty_ground_truth():
+    import torch
+    empty_pred = {"boxes": torch.empty((0, 4)), "labels": torch.empty((0,), dtype=torch.int64), "scores": torch.empty((0,))}
+    empty_gt = {"boxes": torch.empty((0, 4)), "labels": torch.empty((0,), dtype=torch.int64)}
+    with_gt = {"boxes": torch.tensor([[0., 0., 5., 5.]]), "labels": torch.tensor([1])}
+    missed = detection_metrics([empty_pred], [with_gt], 2)["per_class"][1]
+    assert (missed["tp"], missed["fp"], missed["fn"], missed["recall"], missed["ap50"]) == (0, 0, 1, 0.0, 0.0)
+    absent = detection_metrics([empty_pred], [empty_gt], 2)["per_class"][1]
+    assert absent["fn"] == 0 and absent["recall"] is None and absent["ap50"] is None
+
+
+def test_checkpoint_selection_rule():
+    from vision_ml.train import is_improvement
+    assert is_improvement(0.4, float("-inf"))
+    assert is_improvement(0.41, 0.4)
+    assert not is_improvement(0.4, 0.4)

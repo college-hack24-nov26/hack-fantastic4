@@ -29,8 +29,9 @@ def detection_metrics(predictions, targets, num_classes, score_threshold=0.5, io
             gt = targets[index]["boxes"][targets[index]["labels"] == category].cpu()
             if len(gt):
                 overlap = box_iou(box.unsqueeze(0), gt).squeeze(0)
-                best = int(overlap.argmax())
-                hit = float(overlap[best]) >= iou_threshold and best not in matched[index]
+                available = [candidate for candidate in range(len(gt)) if candidate not in matched[index]]
+                best = max(available, key=lambda candidate: float(overlap[candidate])) if available else None
+                hit = best is not None and float(overlap[best]) >= iou_threshold
             else:
                 hit = False
             if hit:

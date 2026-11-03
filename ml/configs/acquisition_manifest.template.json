@@ -1,0 +1,19 @@
+{
+  "status": "template_only_no_images_approved",
+  "source_annotation_archive": "https://images.cocodataset.org/annotations/annotations_trainval2017.zip",
+  "source_annotation_sha256": null,
+  "selection_plan_sha256": null,
+  "intended_use": null,
+  "image_records": [
+    {
+      "image_id": null,
+      "source_partition": null,
+      "official_image_url": null,
+      "license_id": null,
+      "license_url": null,
+      "copyright_holder_or_attribution": null,
+      "permission_basis_for_intended_use": null,
+      "local_sha256_after_download": null
+    }
+  ]
+}
