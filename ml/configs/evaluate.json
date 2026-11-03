@@ -1,0 +1,8 @@
+{
+  "iou_threshold": 0.5,
+  "score_threshold": 0.5,
+  "strata": ["normal", "motion_blur", "low_light", "ultrawide"],
+  "warmup_iterations": 5,
+  "timed_iterations": 20,
+  "device": "auto"
+}
