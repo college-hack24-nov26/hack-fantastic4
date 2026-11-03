@@ -10,6 +10,8 @@ The verified COCO annotation endpoint, candidate acquisition manifest, rights li
 
 The per-image audit and consented-phone fallback are in [RIGHTS_12.md](RIGHTS_12.md). `vision_ml.real_probe` prepares one approved, bounded real-image CUDA step; no real-image probe has run.
 
+Team-owned photograph collection, private annotation format, import command, and approved one-step probe instructions are in [ORIGINAL_IMAGES.md](ORIGINAL_IMAGES.md).
+
 ## Architecture choice
 
 | Candidate | Fit for this project | Main tradeoff |
