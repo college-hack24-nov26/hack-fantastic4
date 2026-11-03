@@ -1,0 +1,21 @@
+{
+  "seed": 42,
+  "architecture": "ssdlite320_mobilenet_v3_large",
+  "num_classes_including_background": 6,
+  "batch_size": 2,
+  "epochs": 34,
+  "learning_rate": 0.001,
+  "sampling_mode": "focus_person_chair",
+  "selection_score_threshold": 0.05,
+  "selection_iou_threshold": 0.5,
+  "early_stopping_enabled": true,
+  "early_stopping_start_epoch": 28,
+  "early_stopping_patience": 3,
+  "device": "auto",
+  "train_annotations": null,
+  "train_images": null,
+  "validation_annotations": null,
+  "validation_images": null,
+  "continuation_checkpoint": null,
+  "output_dir": "runs/phase2c_focus_sampling"
+}

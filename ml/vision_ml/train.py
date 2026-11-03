@@ -8,7 +8,7 @@ from pathlib import Path
 from time import perf_counter
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 
 from .dataset import CocoDetectionDataset, collate
 from .evaluate import detection_metrics
@@ -37,7 +37,24 @@ def load_config(path):
         raise ValueError("early_stopping_enabled must be boolean")
     if config.get("continuation_checkpoint") is not None and not isinstance(config["continuation_checkpoint"], str):
         raise ValueError("continuation_checkpoint must be a path string")
+    if config.get("sampling_mode", "uniform") not in ("uniform", "focus_person_chair"):
+        raise ValueError("Unsupported sampling_mode")
     return config
+
+
+def focus_person_chair_weights(dataset):
+    """Upweight images with chairs or a person box below 2% image area."""
+    weights = []
+    for image in dataset.images:
+        annotations = dataset.annotations.get(image["id"], [])
+        has_chair = any(ann["category_id"] == 5 for ann in annotations)
+        has_small_person = any(
+            ann["category_id"] == 1 and
+            ann["bbox"][2] * ann["bbox"][3] / (image["width"] * image["height"]) < 0.02
+            for ann in annotations
+        )
+        weights.append(1 + int(has_chair) + int(has_small_person))
+    return weights
 
 
 def epoch_memory(device):
@@ -111,7 +128,10 @@ def main():
         raise ValueError("Category mapping differs between splits or config")
     if validation is not None and {image["id"] for image in train.images} & {image["id"] for image in validation.images}:
         raise ValueError("Training and validation image IDs overlap")
-    loader = DataLoader(train, batch_size=config["batch_size"], shuffle=True, drop_last=True, collate_fn=collate, num_workers=0)
+    sampler = None
+    if config.get("sampling_mode") == "focus_person_chair":
+        sampler = WeightedRandomSampler(focus_person_chair_weights(train), len(train), replacement=True, generator=torch.Generator().manual_seed(config["seed"]))
+    loader = DataLoader(train, batch_size=config["batch_size"], shuffle=sampler is None, sampler=sampler, drop_last=True, collate_fn=collate, num_workers=0)
     model = make_model(config["num_classes_including_background"]).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=config["learning_rate"], momentum=0.9)
     output = Path(config["output_dir"])

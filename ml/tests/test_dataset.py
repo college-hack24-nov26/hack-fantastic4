@@ -135,3 +135,15 @@ def test_optional_postprocess_keeps_classes_separate():
     assert len(filter_detections(prediction, 0.5, 0.4, 1)["boxes"]) == 1
     with pytest.raises(ValueError, match="positive integer"):
         filter_detections(prediction, 0.5, 0.4, 0)
+
+
+def test_focus_sampling_weights_only_training_annotations():
+    from types import SimpleNamespace
+    from vision_ml.train import focus_person_chair_weights
+    images = [{"id": n, "width": 100, "height": 100} for n in range(1, 5)]
+    annotations = {
+        2: [{"category_id": 5, "bbox": [0, 0, 40, 40]}],
+        3: [{"category_id": 1, "bbox": [0, 0, 10, 10]}],
+        4: [{"category_id": 5, "bbox": [0, 0, 40, 40]}, {"category_id": 1, "bbox": [0, 0, 10, 10]}],
+    }
+    assert focus_person_chair_weights(SimpleNamespace(images=images, annotations=annotations)) == [1, 2, 2, 3]
