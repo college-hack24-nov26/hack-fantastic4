@@ -6,9 +6,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
+import android.speech.SpeechRecognizer
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -17,6 +19,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -31,6 +35,7 @@ import com.vision.app.ui.components.VisionCard
 import com.vision.app.ui.components.VisionTextButton
 import com.vision.app.ui.theme.VisionColors
 import com.vision.app.voice.AssistantPhase
+import com.vision.app.voice.ModelPhase
 import com.vision.app.voice.VoiceAssistantSession
 
 @Composable
@@ -49,6 +54,7 @@ fun VoiceAssistantPanel(
     val history = remember(context) { context.getSharedPreferences("microphone_permission_state", Activity.MODE_PRIVATE) }
     var requestedBefore by rememberSaveable { mutableStateOf(history.getBoolean("requested", false)) }
     var permissionGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
+    var typedMessage by rememberSaveable { mutableStateOf("") }
     DisposableEffect(session) { onDispose { session.close() } }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -63,6 +69,9 @@ fun VoiceAssistantPanel(
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionGranted = granted
         if (granted) session.startListening(language, speechRate, onLanguageChange, onRateChange)
+    }
+    val modelPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) session.importModel(uri)
     }
     fun beginListening() {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -80,13 +89,29 @@ fun VoiceAssistantPanel(
     VisionCard {
         Text(strings.voiceAssistantTitle, style = MaterialTheme.typography.titleLarge)
         Text(strings.voiceAssistantNote, style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream)
+        Text(when (state.modelPhase) {
+            ModelPhase.Missing -> strings.modelMissing
+            ModelPhase.Loading -> strings.modelLoading
+            ModelPhase.Ready -> strings.modelReady
+            ModelPhase.Error -> strings.modelError
+        }, style = MaterialTheme.typography.bodyMedium)
+        if (state.modelPhase == ModelPhase.Missing || state.modelPhase == ModelPhase.Error) {
+            VisionTextButton(strings.importModel, onClick = { modelPicker.launch(arrayOf("*/*")) })
+        }
         Text(
             when (state.phase) {
                 AssistantPhase.Idle -> strings.voiceIdle
                 AssistantPhase.Listening -> strings.voiceListening
                 AssistantPhase.Processing -> strings.voiceProcessing
                 AssistantPhase.Speaking -> strings.voiceSpeaking
-                AssistantPhase.Error -> strings.voiceError
+                AssistantPhase.Error -> when (state.recognitionError) {
+                    SpeechRecognizer.ERROR_NO_MATCH -> strings.voiceNoMatch
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> strings.voiceNoSpeech
+                    SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED, SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> strings.voiceLanguageMissing
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> strings.micDenied
+                    null -> strings.voiceError
+                    else -> "${strings.voiceServiceError} (${state.recognitionError})"
+                }
                 AssistantPhase.Unavailable -> strings.offlineRecognizerMissing
             },
             style = MaterialTheme.typography.bodyLarge,
@@ -115,5 +140,17 @@ fun VoiceAssistantPanel(
             Text(strings.replyLabel, style = MaterialTheme.typography.titleLarge)
             Text(state.reply, style = MaterialTheme.typography.bodyLarge)
         }
+        OutlinedTextField(
+            value = typedMessage,
+            onValueChange = { typedMessage = it },
+            label = { Text(strings.textInputLabel) },
+            modifier = Modifier.fillMaxWidth(),
+            minLines = 1,
+            maxLines = 3,
+        )
+        VisionButton(strings.sendText, onClick = {
+            session.submitText(typedMessage, language, speechRate, onLanguageChange, onRateChange)
+            typedMessage = ""
+        }, enabled = typedMessage.isNotBlank())
     }
 }

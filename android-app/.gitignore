@@ -1,0 +1,3 @@
+# User-imported LiteRT-LM model weights stay on the device, never in Git.
+*.litertlm
+*.litertlm.*
