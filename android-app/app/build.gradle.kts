@@ -53,6 +53,7 @@ dependencies {
     implementation("androidx.camera:camera-view:1.6.2")
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.18.0")
     implementation("com.microsoft.onnxruntime:onnxruntime-android:1.29.0")
+    implementation("com.google.mediapipe:tasks-vision:0.10.32")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")

@@ -19,8 +19,8 @@ class VisualQuestionRouter {
         if (contains(text, "color", "colour", "read the", "read this", "what does it say", "text on", "distance",
                 "how far", "how many", "count the", "moving", "traffic light", "license plate", "number plate",
                 "rang kya", "kitni door", "kitne", "padh", "रंग", "कितनी दूर")) {
-            return if (hinglish) "Main camera se color, text, distance ya movement verify nahi kar sakta. Detector sirf paanch object classes ke guesses deta hai."
-            else "I cannot verify color, text, distance, or movement from this camera. The detector only guesses five object classes."
+            return if (hinglish) "Main camera se color, text, distance ya movement verify nahi kar sakta. Object guesses ko safety ke liye use na karein."
+            else "I cannot verify color, text, distance, or movement from this camera. Do not use object guesses for safety."
         }
         if (!contains(text, "what do you see", "what can you see", "what's in front", "what is in front",
                 "describe the scene", "describe what", "what objects", "camera detect", "can you see",

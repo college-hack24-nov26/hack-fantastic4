@@ -254,36 +254,38 @@ private data class DetectorCopy(
     val skipped: String, val estimatedDropped: String, val detail: String,
     val metricsNote: String, val noReliableResult: String, val experimentalGuesses: String,
     val thermal: String, val battery: String, val charging: String, val saver: String, val guessPrefix: String,
-    val names: Map<Int, String>,
+    val isEnglish: Boolean,
 ) {
-    fun label(detection: Detection) = names[detection.classId] ?: detection.label
+    fun label(detection: Detection) = if (isEnglish) detection.label else when (detection.label) {
+        "person" -> "insaan"; "bicycle" -> "cycle"; "chair" -> "kursi"; else -> detection.label
+    }
     fun phase(phase: DetectorPhase): String = when (phase) {
-        DetectorPhase.Loading -> if (names[1] == "person") "Loading model" else "Model load ho raha hai"
-        DetectorPhase.Running -> if (names[1] == "person") "Experimental detection active" else "Experimental detection chal rahi hai"
-        DetectorPhase.Degraded -> if (names[1] == "person") "Monitoring degraded; results hidden" else "Monitoring kamzor hai; results chhupaye hain"
-        DetectorPhase.MissingModel -> if (names[1] == "person") "Model missing; preview only" else "Model nahi mila; sirf preview"
-        DetectorPhase.Error -> if (names[1] == "person") "Detector failed; preview only" else "Detector fail hua; sirf preview"
-        DetectorPhase.Stopped -> if (names[1] == "person") "Stopped" else "Band hai"
+        DetectorPhase.Loading -> if (isEnglish) "Loading model" else "Model load ho raha hai"
+        DetectorPhase.Running -> if (isEnglish) "Experimental detection active" else "Experimental detection chal rahi hai"
+        DetectorPhase.Degraded -> if (isEnglish) "Monitoring degraded; results hidden" else "Monitoring kamzor hai; results chhupaye hain"
+        DetectorPhase.MissingModel -> if (isEnglish) "Model missing; preview only" else "Model nahi mila; sirf preview"
+        DetectorPhase.Error -> if (isEnglish) "Detector failed; preview only" else "Detector fail hua; sirf preview"
+        DetectorPhase.Stopped -> if (isEnglish) "Stopped" else "Band hai"
     }
     companion object {
         fun forLanguage(language: UiLanguage) = if (language == UiLanguage.English) DetectorCopy(
             warning = "EXPERIMENTAL object guesses. This model misses objects and makes false detections. Never use it for walking or safety decisions.",
-            status = "Detector", threshold = "Minimum score (not a safety confidence)", inference = "ONNX", frame = "Frame",
+            status = "Detector", threshold = "Minimum score (not a safety confidence)", inference = "Conversion + inference", frame = "Frame",
             age = "Result age", captureAge = "Capture age", processed = "Processed", skipped = "Cadence skipped",
             estimatedDropped = "Est. camera drops", detail = "Reason", metricsNote = "Camera drops are estimated from frame timestamps; frames are not saved.",
             noReliableResult = "No reliable object information", experimentalGuesses = "Experimental guesses",
             thermal = "Thermal status", battery = "Battery", charging = "Charging", saver = "Battery saver",
             guessPrefix = "guess:",
-            names = mapOf(1 to "person", 2 to "bicycle", 3 to "motorcycle", 4 to "car", 5 to "chair"),
+            isEnglish = true,
         ) else DetectorCopy(
             warning = "EXPERIMENTAL object guesses. Model kuch cheezein miss karta hai aur galat bhi batata hai. Chalne ya safety decision ke liye use na karein.",
-            status = "Detector", threshold = "Minimum score (safety confidence nahi)", inference = "ONNX", frame = "Frame",
+            status = "Detector", threshold = "Minimum score (safety confidence nahi)", inference = "Conversion + inference", frame = "Frame",
             age = "Result ki age", captureAge = "Capture age", processed = "Process hue", skipped = "Cadence se skip",
             estimatedDropped = "Est. camera drops", detail = "Wajah", metricsNote = "Camera drops timestamp se estimate hain; frames save nahi hote.",
             noReliableResult = "Bharosemand object info nahi hai", experimentalGuesses = "Experimental guesses",
             thermal = "Thermal status", battery = "Battery", charging = "Charging", saver = "Battery saver",
             guessPrefix = "andaza:",
-            names = mapOf(1 to "insaan", 2 to "cycle", 3 to "motorcycle", 4 to "car", 5 to "kursi"),
+            isEnglish = false,
         )
     }
 }

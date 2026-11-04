@@ -29,14 +29,13 @@ data class DetectorState(
     val power: PowerSnapshot? = null,
 )
 
-/** One foreground camera session, one analyzer worker, and one ONNX session. */
+/** One foreground camera session, one analyzer worker, and one MediaPipe session. */
 class CameraDetectionController(context: Context, private val scenes: SceneObservations) : ImageAnalysis.Analyzer, AutoCloseable {
     private val sessionId = nextSessionId.incrementAndGet()
     private val appContext = context.applicationContext
-    private val worker = Executors.newSingleThreadExecutor { job -> Thread(job, "vision-onnx-analysis") }
+    private val worker = Executors.newSingleThreadExecutor { job -> Thread(job, "vision-mediapipe-analysis") }
     private val stopped = AtomicBoolean(false)
-    private var detector: OnnxObjectDetector? = null
-    private val preprocessor = CameraFramePreprocessor()
+    private var detector: EfficientDetDetector? = null
     private val powerMonitor = PowerThermalMonitor(appContext)
     private val mutableState = MutableStateFlow(DetectorState())
     val state = mutableState.asStateFlow()
@@ -55,7 +54,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
         worker.execute {
             if (stopped.get()) return@execute
             try {
-                val loaded = OnnxObjectDetector(appContext).also { it.load() }
+                val loaded = EfficientDetDetector(appContext).also { it.load() }
                 if (stopped.get()) {
                     loaded.close()
                     return@execute
@@ -97,9 +96,8 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
                     detail = "Android reports thermal throttling")
                 return
             }
-            val tensor = preprocessor.prepare(image)
             val inferenceStart = SystemClock.elapsedRealtimeNanos()
-            val boxes = active.detect(tensor, confidenceThreshold)
+            val boxes = active.detect(image, confidenceThreshold)
             val end = SystemClock.elapsedRealtimeNanos()
             if (stopped.get()) return
             processed++
@@ -157,7 +155,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
     companion object {
         private const val TAG = "VisionDetector"
         private val nextSessionId = AtomicLong()
-        private const val MIN_INTERVAL_NS = 500_000_000L // 2 Hz after Samsung measured ~200 ms full-frame processing.
+        private const val MIN_INTERVAL_NS = 500_000_000L // Initial 2 Hz; review against Samsung measurements.
         private const val MAX_FRAME_MS = 750.0
         private const val MAX_CAPTURE_AGE_MS = 1_000.0
     }
