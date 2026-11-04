@@ -14,7 +14,7 @@ sealed interface DialogueAction {
     data class SetRate(val rate: Float) : DialogueAction
 }
 
-data class DialogueReply(val text: String, val action: DialogueAction = DialogueAction.None, val speak: Boolean = true)
+data class DialogueReply(val text: String, val action: DialogueAction = DialogueAction.None, val speak: Boolean = true, val handled: Boolean = true)
 
 /** Small deterministic command engine. It never generates visual observations. */
 class DialogueEngine(private val clock: Clock = Clock.systemDefaultZone()) {
@@ -57,11 +57,11 @@ class DialogueEngine(private val clock: Clock = Clock.systemDefaultZone()) {
                 DialogueReply(if (hinglish) "Aaj ${day.format(DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("hi-IN")))} hai." else "Today is ${day.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.ENGLISH))}.")
             }
             has(words, "help", "commands", "madad", "मदद") -> DialogueReply(help(hinglish))
-            has(words, "see", "front", "around", "describe", "object", "obstacle", "hazard", "path", "safe", "raasta", "samne", "aage", "देख", "सामने", "रास्ता", "सुरक्षित") ->
-                DialogueReply(if (hinglish) "Visual detection abhi available nahi hai. Main aas-paas ya raaste ki safety nahi bata sakta." else "Visual detection is not available yet. I cannot describe your surroundings or judge route safety.")
-            else -> DialogueReply(if (hinglish) "Main abhi time, date, language aur speech speed mein help kar sakta hoon. Visual sawaalon ke liye model abhi ready nahi hai." else "I can help with time, date, language, and speech speed. Visual questions need the model, which is not ready yet.")
+            isVisualQuestion(words) ->
+                DialogueReply(if (hinglish) "Main sirf active camera ke recent experimental object guesses bata sakta hoon. Raaste ki safety verify nahi kar sakta." else "I can only describe recent experimental object guesses from an active camera. I cannot verify route safety.")
+            else -> DialogueReply("", handled = false)
         }
-        if (reply.speak) lastReply = reply.text
+        if (reply.handled && reply.speak && reply.text.isNotBlank()) lastReply = reply.text
         return reply
     }
 
@@ -72,4 +72,7 @@ class DialogueEngine(private val clock: Clock = Clock.systemDefaultZone()) {
 
     private fun has(text: String, vararg phrases: String) = phrases.any { text.contains(it) }
 
+    private fun isVisualQuestion(text: String) = has(text,
+        "see", "front", "around", "describe", "object", "obstacle", "hazard", "path", "safe", "raasta", "samne", "aage", "देख", "सामने", "रास्ता", "सुरक्षित",
+    )
 }

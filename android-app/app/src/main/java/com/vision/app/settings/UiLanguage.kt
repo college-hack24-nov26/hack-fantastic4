@@ -12,4 +12,5 @@ enum class UiLanguage(val storedValue: String) {
 data class VisionPreferences(
     val language: UiLanguage = UiLanguage.English,
     val speechRate: Float = 1f,
+    val automaticAnnouncements: Boolean = false,
 )

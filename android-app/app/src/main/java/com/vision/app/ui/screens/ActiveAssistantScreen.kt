@@ -14,6 +14,9 @@ import com.vision.app.ui.components.VisionTextButton
 import com.vision.app.ui.theme.VisionColors
 import com.vision.app.ui.VisionStrings
 import com.vision.app.settings.UiLanguage
+import com.vision.app.detector.SceneObservations
+import com.vision.app.voice.VoiceAssistantSession
+import com.vision.app.domain.voice.CameraRuntimeStatus
 
 @Composable
 fun ActiveAssistantScreen(
@@ -23,6 +26,11 @@ fun ActiveAssistantScreen(
     speechRate: Float,
     onLanguageChange: (UiLanguage) -> Unit,
     onRateChange: (Float) -> Unit,
+    scenes: SceneObservations,
+    automaticAnnouncements: Boolean,
+    onAutomaticAnnouncementsChange: (Boolean) -> Unit,
+    voiceSession: VoiceAssistantSession,
+    cameraStatus: CameraRuntimeStatus,
     isLoading: Boolean,
     onRefresh: () -> Unit,
     onBack: () -> Unit,
@@ -37,7 +45,8 @@ fun ActiveAssistantScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        VoiceAssistantPanel(strings, language, speechRate, onLanguageChange, onRateChange)
+        VoiceAssistantPanel(strings, language, speechRate, onLanguageChange, onRateChange,
+            scenes, automaticAnnouncements, onAutomaticAnnouncementsChange, voiceSession, cameraStatus)
         Text(strings.sampleTitle, style = MaterialTheme.typography.titleLarge)
         Text(
             if (isLoading) strings.sampleLoading else if (observation == null) strings.sampleEmpty else if (observation.isSimulated) strings.sampleDescription else observation.description,

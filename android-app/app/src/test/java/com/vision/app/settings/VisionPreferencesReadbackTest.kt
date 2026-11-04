@@ -10,6 +10,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VisionPreferencesReadbackTest {
@@ -21,6 +23,14 @@ class VisionPreferencesReadbackTest {
     @Test fun rateSurvivesReopen() = verifyReopen(
         write = { it.setSpeechRate(1.2f) },
         check = { assertEquals(1.2f, it.preferences.first().speechRate) },
+    )
+
+    @Test fun automaticAnnouncementsDefaultOffAndSurviveReopen() = verifyReopen(
+        write = {
+            assertFalse(it.preferences.first().automaticAnnouncements)
+            it.setAutomaticAnnouncements(true)
+        },
+        check = { assertTrue(it.preferences.first().automaticAnnouncements) },
     )
 
     private fun verifyReopen(

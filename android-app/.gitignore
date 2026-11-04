@@ -1,0 +1,7 @@
+# User-imported LiteRT-LM model weights stay on the device, never in Git.
+*.litertlm
+*.litertlm.*
+# Private detector weights are copied into the debug APK only for local device tests.
+*.onnx
+# Google's pretrained detector is packaged locally after a verified download.
+*.tflite

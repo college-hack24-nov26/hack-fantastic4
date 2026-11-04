@@ -1,6 +1,7 @@
 package com.vision.app.ui
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,6 +38,11 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
         return
     }
     val strings = VisionStrings.forLanguage(state.language)
+    LaunchedEffect(state.cameraNavigationSeq) {
+        if (state.cameraNavigationSeq > 0 && navController.currentDestination?.route != Destination.Camera) {
+            navController.navigate(Destination.Camera)
+        }
+    }
 
     NavHost(navController = navController, startDestination = Destination.Splash) {
         composable(Destination.Splash) {
@@ -75,7 +81,10 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
             )
         }
         composable(Destination.Home) {
-            HomeScreen(strings, state.language, viewModel::setLanguage, onSettings = { navController.navigate(Destination.VoiceSetup) }, onCamera = { navController.navigate(Destination.Camera) }, onStart = {
+            HomeScreen(strings, state.language, viewModel::setLanguage, onSettings = { navController.navigate(Destination.VoiceSetup) }, onCamera = {
+                viewModel.openCamera()
+                navController.navigate(Destination.Camera)
+            }, onStart = {
                 viewModel.loadMockObservation()
                 navController.navigate(Destination.Assistant)
             })
@@ -88,13 +97,24 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
                 speechRate = state.speechRate,
                 onLanguageChange = viewModel::setLanguage,
                 onRateChange = viewModel::setSpeechRate,
+                scenes = viewModel.scenes,
+                automaticAnnouncements = state.automaticAnnouncements,
+                onAutomaticAnnouncementsChange = viewModel::setAutomaticAnnouncements,
+                voiceSession = viewModel.voiceSession(),
+                cameraStatus = state.cameraStatus,
                 isLoading = state.isLoading,
                 onRefresh = viewModel::loadMockObservation,
                 onBack = { navController.popBackStack() },
             )
         }
         composable(Destination.Camera) {
-            CameraPreviewScreen(strings, onBack = { navController.popBackStack() })
+            CameraPreviewScreen(strings, state.language, state.speechRate, viewModel.scenes,
+                state.automaticAnnouncements, viewModel::setAutomaticAnnouncements,
+                viewModel::setLanguage, viewModel::setSpeechRate,
+                viewModel.voiceSession(), state.cameraRequested, state.cameraStatus,
+                viewModel::openCamera, { viewModel.stopCamera {} }, viewModel::cameraStarted,
+                viewModel::cameraStopped, viewModel::cameraFailed,
+                onBack = { navController.popBackStack() })
         }
     }
 }
