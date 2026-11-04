@@ -5,8 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.vision.app.domain.safety.NoOpSafetyPolicy
 import com.vision.app.domain.safety.SafetyPolicy
-import com.vision.app.domain.vision.MockVisionEngine
-import com.vision.app.domain.vision.VisionEngine
+import com.vision.app.domain.vision.LiveVisionEngine
 import com.vision.app.domain.vision.VisionObservation
 import com.vision.app.detector.SceneObservations
 import com.vision.app.domain.voice.CameraCommandPort
@@ -34,6 +33,7 @@ data class VisionUiState(
 
 class VisionViewModel(application: Application) : AndroidViewModel(application), CameraCommandPort {
     val scenes = SceneObservations()
+    val engine = LiveVisionEngine(scenes)
     private var sharedVoiceSession: VoiceAssistantSession? = null
     private var pendingCameraStart: ((Boolean) -> Unit)? = null
     private var pendingCameraStop: ((Boolean) -> Unit)? = null
@@ -41,7 +41,6 @@ class VisionViewModel(application: Application) : AndroidViewModel(application),
         sharedVoiceSession = it
     }
     override val cameraStatus: CameraRuntimeStatus get() = mutableState.value.cameraStatus
-    private val engine: VisionEngine = MockVisionEngine()
     private val safetyPolicy: SafetyPolicy = NoOpSafetyPolicy()
     private val preferences = VisionPreferencesRepository.from(application)
     private val mutableState = MutableStateFlow(VisionUiState())
@@ -113,7 +112,7 @@ class VisionViewModel(application: Application) : AndroidViewModel(application),
         pendingCameraStart = null
         if (cameraStatus == CameraRuntimeStatus.Off || cameraStatus == CameraRuntimeStatus.Failed) {
             mutableState.update { it.copy(cameraRequested = false, cameraStatus = CameraRuntimeStatus.Off) }
-            scenes.snapshot.value.sessionId?.let(scenes::stop)
+            scenes.snapshot.value.sessionId?.let(engine::stop)
             onComplete(true)
             return
         }
@@ -131,7 +130,7 @@ class VisionViewModel(application: Application) : AndroidViewModel(application),
     }
 
     fun cameraStopped() {
-        scenes.snapshot.value.sessionId?.let(scenes::stop)
+        scenes.snapshot.value.sessionId?.let(engine::stop)
         mutableState.update { it.copy(cameraRequested = false,
             cameraStatus = if (it.cameraStatus == CameraRuntimeStatus.Failed) CameraRuntimeStatus.Failed else CameraRuntimeStatus.Off) }
         pendingCameraStart?.invoke(false)
@@ -141,7 +140,7 @@ class VisionViewModel(application: Application) : AndroidViewModel(application),
     }
 
     fun cameraFailed() {
-        scenes.snapshot.value.sessionId?.let(scenes::stop)
+        scenes.snapshot.value.sessionId?.let(engine::stop)
         mutableState.update { it.copy(cameraRequested = false, cameraStatus = CameraRuntimeStatus.Failed) }
         pendingCameraStart?.invoke(false)
         pendingCameraStart = null
@@ -155,11 +154,11 @@ class VisionViewModel(application: Application) : AndroidViewModel(application),
         super.onCleared()
     }
 
-    fun loadMockObservation() {
+    fun loadObservation() {
         viewModelScope.launch {
             mutableState.update { it.copy(isLoading = true) }
-            val observation = engine.observe()
-            // The current policy never turns mock output into a safety warning.
+            val observation = engine.observe(mutableState.value.language)
+            // The current policy never turns experimental output into a safety warning.
             safetyPolicy.warningFor(observation)
             mutableState.update { it.copy(observation = observation, isLoading = false) }
         }

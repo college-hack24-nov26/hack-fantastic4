@@ -56,10 +56,10 @@ class EfficientDetDetector(private val context: Context) : AutoCloseable {
                 val label = category.categoryName().trim()
                 if (!score.isFinite() || score < threshold || label.isBlank() || label == "???" ||
                     !box.left.isFinite() || !box.top.isFinite() || !box.right.isFinite() || !box.bottom.isFinite()) return@mapNotNull null
-                val left = (box.left / SIZE).coerceIn(0f, 1f)
-                val top = (box.top / SIZE).coerceIn(0f, 1f)
-                val right = (box.right / SIZE).coerceIn(0f, 1f)
-                val bottom = (box.bottom / SIZE).coerceIn(0f, 1f)
+                val left = UprightFrameMapping.normalized(box.left, SIZE)
+                val top = UprightFrameMapping.normalized(box.top, SIZE)
+                val right = UprightFrameMapping.normalized(box.right, SIZE)
+                val bottom = UprightFrameMapping.normalized(box.bottom, SIZE)
                 if (right <= left || bottom <= top) null
                 else Detection(category.index(), label, score, left, top, right, bottom)
             }
@@ -105,15 +105,9 @@ class EfficientDetDetector(private val context: Context) : AutoCloseable {
         left: Int, top: Int, right: Int, bottom: Int, rotation: Int,
         x0: Int, x1: Int, y0: Int, y1: Int, wx: Float, wy: Float, channel: Int): Int {
         fun sample(x: Int, y: Int): Int {
-            val rawX: Int
-            val rawY: Int
-            when (rotation) {
-                90 -> { rawX = left + y; rawY = bottom - 1 - x }
-                180 -> { rawX = right - 1 - x; rawY = bottom - 1 - y }
-                270 -> { rawX = right - 1 - y; rawY = top + x }
-                else -> { rawX = left + x; rawY = top + y }
-            }
-            return data.get(rawY * rowStride + rawX * pixelStride + channel).toInt() and 0xff
+            val offset = UprightFrameMapping.sourceOffset(left, top, right, bottom, rotation,
+                x, y, rowStride, pixelStride)
+            return data.get(offset + channel).toInt() and 0xff
         }
         val upper = sample(x0, y0) * (1f - wx) + sample(x1, y0) * wx
         val lower = sample(x0, y1) * (1f - wx) + sample(x1, y1) * wx

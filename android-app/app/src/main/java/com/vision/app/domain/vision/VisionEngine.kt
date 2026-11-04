@@ -1,5 +1,7 @@
 package com.vision.app.domain.vision
 
+import com.vision.app.settings.UiLanguage
+
 /** Application-level observation, independent of any model tensor contract. */
 data class VisionObservation(
     val description: String,
@@ -7,11 +9,11 @@ data class VisionObservation(
 )
 
 interface VisionEngine {
-    suspend fun observe(): VisionObservation
+    suspend fun observe(language: UiLanguage): VisionObservation
 }
 
 class MockVisionEngine : VisionEngine {
-    override suspend fun observe() = VisionObservation(
+    override suspend fun observe(language: UiLanguage) = VisionObservation(
         description = "This is a sample observation for interface testing. No camera or model is active.",
         isSimulated = true,
     )

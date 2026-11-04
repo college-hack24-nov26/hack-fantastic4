@@ -85,7 +85,7 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
                 viewModel.openCamera()
                 navController.navigate(Destination.Camera)
             }, onStart = {
-                viewModel.loadMockObservation()
+                viewModel.loadObservation()
                 navController.navigate(Destination.Assistant)
             })
         }
@@ -103,12 +103,12 @@ fun VisionApp(viewModel: VisionViewModel = viewModel()) {
                 voiceSession = viewModel.voiceSession(),
                 cameraStatus = state.cameraStatus,
                 isLoading = state.isLoading,
-                onRefresh = viewModel::loadMockObservation,
+                onRefresh = viewModel::loadObservation,
                 onBack = { navController.popBackStack() },
             )
         }
         composable(Destination.Camera) {
-            CameraPreviewScreen(strings, state.language, state.speechRate, viewModel.scenes,
+            CameraPreviewScreen(strings, state.language, state.speechRate, viewModel.scenes, viewModel.engine,
                 state.automaticAnnouncements, viewModel::setAutomaticAnnouncements,
                 viewModel::setLanguage, viewModel::setSpeechRate,
                 viewModel.voiceSession(), state.cameraRequested, state.cameraStatus,

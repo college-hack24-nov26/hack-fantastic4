@@ -6,6 +6,7 @@ import android.os.PowerManager
 import android.util.Log
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.vision.app.domain.vision.LiveVisionEngine
 import java.io.FileNotFoundException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,7 +31,7 @@ data class DetectorState(
 )
 
 /** One foreground camera session, one analyzer worker, and one MediaPipe session. */
-class CameraDetectionController(context: Context, private val scenes: SceneObservations) : ImageAnalysis.Analyzer, AutoCloseable {
+class CameraDetectionController(context: Context, private val engine: LiveVisionEngine) : ImageAnalysis.Analyzer, AutoCloseable {
     private val sessionId = nextSessionId.incrementAndGet()
     private val appContext = context.applicationContext
     private val worker = Executors.newSingleThreadExecutor { job -> Thread(job, "vision-mediapipe-analysis") }
@@ -50,7 +51,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
     val executor get() = worker
 
     fun start() {
-        scenes.start(sessionId)
+        engine.start(sessionId)
         worker.execute {
             if (stopped.get()) return@execute
             try {
@@ -64,7 +65,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
                 Log.i(TAG, "model loaded; CPU inference ready")
             } catch (error: Throwable) {
                 Log.e(TAG, "model load failed", error)
-                scenes.stop(sessionId)
+                engine.stop(sessionId)
                 if (!stopped.get()) mutableState.value = DetectorState(
                     phase = if (error is FileNotFoundException) DetectorPhase.MissingModel else DetectorPhase.Error,
                     detail = error.javaClass.simpleName)
@@ -89,7 +90,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
             lastStartNs = nowNs
             val power = powerMonitor.snapshot()
             if ((power.thermalStatus ?: 0) >= PowerManager.THERMAL_STATUS_MODERATE) {
-                scenes.clear(sessionId)
+                engine.clear(sessionId)
                 skipped++
                 mutableState.value = mutableState.value.copy(phase = DetectorPhase.Degraded,
                     detections = emptyList(), skipped = skipped, power = power,
@@ -105,8 +106,8 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
             val captureAge = (end - timestampNs) / 1_000_000.0
             val age = captureAge.takeIf { it in 0.0..10_000.0 }
             val degraded = frameMs > MAX_FRAME_MS || (age != null && age > MAX_CAPTURE_AGE_MS)
-            if (degraded) scenes.clear(sessionId)
-            else scenes.publish(sessionId, boxes,
+            if (degraded) engine.clear(sessionId)
+            else engine.publish(sessionId, boxes,
                 capturedAtMs = age?.let { SystemClock.elapsedRealtime() - it.toLong() } ?: SystemClock.elapsedRealtime(),
                 processedAtMs = SystemClock.elapsedRealtime())
             mutableState.value = DetectorState(
@@ -129,7 +130,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
             }
         } catch (error: Throwable) {
             Log.e(TAG, "analysis failed", error)
-            scenes.stop(sessionId)
+            engine.stop(sessionId)
             if (!stopped.get()) mutableState.value = mutableState.value.copy(phase = DetectorPhase.Error,
                 detections = emptyList(), detail = error.javaClass.simpleName)
             try { detector?.close() } catch (closeError: Throwable) { Log.e(TAG, "detector close failed", closeError) }
@@ -141,7 +142,7 @@ class CameraDetectionController(context: Context, private val scenes: SceneObser
 
     override fun close() {
         if (!stopped.compareAndSet(false, true)) return
-        scenes.stop(sessionId)
+        engine.stop(sessionId)
         mutableState.value = mutableState.value.copy(phase = DetectorPhase.Stopped, detections = emptyList())
         worker.execute {
             try { detector?.close() } catch (error: Throwable) { Log.e(TAG, "detector close failed", error) }

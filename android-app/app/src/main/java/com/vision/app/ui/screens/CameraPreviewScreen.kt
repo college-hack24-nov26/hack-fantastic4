@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -59,6 +60,7 @@ import com.vision.app.detector.CameraDetectionController
 import com.vision.app.detector.Detection
 import com.vision.app.detector.DetectorPhase
 import com.vision.app.detector.SceneObservations
+import com.vision.app.domain.vision.LiveVisionEngine
 import com.vision.app.voice.VoiceAssistantSession
 import com.vision.app.domain.voice.CameraRuntimeStatus
 import com.vision.app.settings.UiLanguage
@@ -74,7 +76,7 @@ import kotlinx.coroutines.delay
 /** Experimental detector display. Scene descriptions remain separate from safety policy. */
 @Composable
 fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, speechRate: Float,
-    scenes: SceneObservations, automaticAnnouncements: Boolean,
+    scenes: SceneObservations, engine: LiveVisionEngine, automaticAnnouncements: Boolean,
     onAutomaticAnnouncementsChange: (Boolean) -> Unit,
     onLanguageChange: (UiLanguage) -> Unit, onRateChange: (Float) -> Unit,
     voiceSession: VoiceAssistantSession, cameraEnabled: Boolean,
@@ -113,7 +115,7 @@ fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, speechRate
     }
     val permanentlyDenied = requestedBefore && !permissionGranted &&
         !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
-    DisposableEffect(Unit) { onDispose { onCameraStopped() } }
+    DisposableEffect(Unit) { onDispose { if (!activity.isChangingConfigurations) onCameraStopped() } }
     ScreenFrame {
         VisionTextButton(strings.assistantBack, onBack)
         Text(strings.cameraTitle, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
@@ -130,7 +132,7 @@ fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, speechRate
             Text(if (streaming) strings.cameraActive else strings.cameraStarting,
                 style = MaterialTheme.typography.titleLarge, color = VisionColors.Cream)
             VisionButton(strings.stopCamera, onClick = { onStopCamera(); streaming = false })
-            CameraMonitor(strings.cameraTitle, copy, scenes,
+            CameraMonitor(strings.cameraTitle, copy, engine,
                 onStreamState = { streaming = it; if (it) onCameraStarted() },
                 onFailure = { cameraFailed = true; onCameraFailure(); streaming = false },
                 onStopped = onCameraStopped)
@@ -141,9 +143,10 @@ fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, speechRate
 }
 
 @Composable
-private fun CameraMonitor(description: String, copy: DetectorCopy, scenes: SceneObservations,
+private fun CameraMonitor(description: String, copy: DetectorCopy, engine: LiveVisionEngine,
     onStreamState: (Boolean) -> Unit, onFailure: () -> Unit, onStopped: () -> Unit) {
     val context = LocalContext.current
+    val activity = context as Activity
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember(context) {
         PreviewView(context).apply {
@@ -151,15 +154,16 @@ private fun CameraMonitor(description: String, copy: DetectorCopy, scenes: Scene
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
     }
-    val controller = remember(context) { CameraDetectionController(context, scenes) }
+    val controller = remember(context, engine) { CameraDetectionController(context, engine) }
     val state by controller.state.collectAsStateWithLifecycle()
+    val engineDetections by engine.detections.collectAsStateWithLifecycle()
     var threshold by rememberSaveable { mutableStateOf(0.25f) }
     controller.confidenceThreshold = threshold
     var nowMs by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
     LaunchedEffect(Unit) { while (true) { nowMs = SystemClock.elapsedRealtime(); delay(500) } }
     val resultAge = if (state.completedAtMs > 0) (nowMs - state.completedAtMs).coerceAtLeast(0L) else null
     val stale = resultAge != null && resultAge > 1_500L
-    val visible = if (!stale && state.phase == DetectorPhase.Running) state.detections.take(12) else emptyList()
+    val visible = if (!stale && state.phase == DetectorPhase.Running) engineDetections.take(12) else emptyList()
 
     BoxWithConstraints(Modifier.fillMaxWidth().height(480.dp).semantics {
         contentDescription = if (visible.isEmpty()) "$description. ${copy.noReliableResult}"
@@ -175,8 +179,10 @@ private fun CameraMonitor(description: String, copy: DetectorCopy, scenes: Scene
             }
         }
         visible.take(8).forEach { box ->
+            val labelX = (maxWidth * box.left).coerceAtMost((maxWidth - 180.dp).coerceAtLeast(0.dp))
+            val labelY = (maxHeight * box.top).coerceAtMost((maxHeight - 48.dp).coerceAtLeast(0.dp))
             Text("${copy.guessPrefix} ${copy.label(box)} ${percent(box.score)}",
-                modifier = Modifier.offset(x = maxWidth * box.left, y = maxHeight * box.top)
+                modifier = Modifier.offset(x = labelX, y = labelY).widthIn(max = maxWidth - labelX)
                     .background(VisionColors.Cream).padding(horizontal = 3.dp),
                 color = VisionColors.CharcoalText, style = MaterialTheme.typography.bodyMedium)
         }
@@ -240,7 +246,7 @@ private fun CameraMonitor(description: String, copy: DetectorCopy, scenes: Scene
             analysis.clearAnalyzer()
             provider?.unbind(preview, analysis)
             controller.close()
-            onStopped()
+            if (!activity.isChangingConfigurations) onStopped()
         }
     }
 }
