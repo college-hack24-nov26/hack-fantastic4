@@ -58,6 +58,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vision.app.detector.CameraDetectionController
 import com.vision.app.detector.Detection
 import com.vision.app.detector.DetectorPhase
+import com.vision.app.detector.SceneObservations
+import com.vision.app.voice.VoiceAssistantSession
+import com.vision.app.domain.voice.CameraRuntimeStatus
 import com.vision.app.settings.UiLanguage
 import com.vision.app.ui.VisionStrings
 import com.vision.app.ui.components.ScreenFrame
@@ -68,9 +71,17 @@ import com.vision.app.ui.theme.VisionColors
 import java.util.Locale
 import kotlinx.coroutines.delay
 
-/** Experimental detector display. Results never reach TTS or the safety policy. */
+/** Experimental detector display. Scene descriptions remain separate from safety policy. */
 @Composable
-fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, onBack: () -> Unit) {
+fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, speechRate: Float,
+    scenes: SceneObservations, automaticAnnouncements: Boolean,
+    onAutomaticAnnouncementsChange: (Boolean) -> Unit,
+    onLanguageChange: (UiLanguage) -> Unit, onRateChange: (Float) -> Unit,
+    voiceSession: VoiceAssistantSession, cameraEnabled: Boolean,
+    cameraStatus: CameraRuntimeStatus,
+    onStartCamera: () -> Unit, onStopCamera: () -> Unit,
+    onCameraStarted: () -> Unit, onCameraStopped: () -> Unit, onCameraFailure: () -> Unit,
+    onBack: () -> Unit) {
     val copy = DetectorCopy.forLanguage(language)
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -78,12 +89,12 @@ fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, onBack: ()
     val requestHistory = remember(context) { context.getSharedPreferences("camera_permission_state", Activity.MODE_PRIVATE) }
     var requestedBefore by rememberSaveable { mutableStateOf(requestHistory.getBoolean("requested", false)) }
     var permissionGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) }
-    var cameraEnabled by rememberSaveable { mutableStateOf(true) }
     var streaming by remember { mutableStateOf(false) }
     var cameraFailed by remember { mutableStateOf(false) }
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionGranted = granted
         cameraFailed = false
+        if (!granted) onCameraFailure()
     }
     fun requestPermission() {
         requestedBefore = true
@@ -95,13 +106,14 @@ fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, onBack: ()
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) permissionGranted =
                 ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-            if (event == Lifecycle.Event.ON_STOP) { streaming = false; cameraEnabled = false }
+            if (event == Lifecycle.Event.ON_STOP) streaming = false // CameraX pauses with the lifecycle.
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val permanentlyDenied = requestedBefore && !permissionGranted &&
         !ActivityCompat.shouldShowRequestPermissionRationale(activity, Manifest.permission.CAMERA)
+    DisposableEffect(Unit) { onDispose { onCameraStopped() } }
     ScreenFrame {
         VisionTextButton(strings.assistantBack, onBack)
         Text(strings.cameraTitle, modifier = Modifier.semantics { heading() }, style = MaterialTheme.typography.headlineLarge)
@@ -113,21 +125,24 @@ fun CameraPreviewScreen(strings: VisionStrings, language: UiLanguage, onBack: ()
             }) else VisionButton(strings.requestCamera, onClick = ::requestPermission)
         } else if (!cameraEnabled) {
             Text(if (cameraFailed) strings.cameraUnavailable else strings.cameraStopped, style = MaterialTheme.typography.titleLarge)
-            VisionButton(strings.startCamera, onClick = { cameraFailed = false; cameraEnabled = true })
+            VisionButton(strings.startCamera, onClick = { cameraFailed = false; onStartCamera() })
         } else {
             Text(if (streaming) strings.cameraActive else strings.cameraStarting,
                 style = MaterialTheme.typography.titleLarge, color = VisionColors.Cream)
-            VisionButton(strings.stopCamera, onClick = { cameraEnabled = false; streaming = false })
-            CameraMonitor(strings.cameraTitle, copy,
-                onStreamState = { streaming = it },
-                onFailure = { cameraFailed = true; cameraEnabled = false; streaming = false })
+            VisionButton(strings.stopCamera, onClick = { onStopCamera(); streaming = false })
+            CameraMonitor(strings.cameraTitle, copy, scenes,
+                onStreamState = { streaming = it; if (it) onCameraStarted() },
+                onFailure = { cameraFailed = true; onCameraFailure(); streaming = false },
+                onStopped = onCameraStopped)
         }
+        VoiceAssistantPanel(strings, language, speechRate, onLanguageChange, onRateChange,
+            scenes, automaticAnnouncements, onAutomaticAnnouncementsChange, voiceSession, cameraStatus)
     }
 }
 
 @Composable
-private fun CameraMonitor(description: String, copy: DetectorCopy,
-    onStreamState: (Boolean) -> Unit, onFailure: () -> Unit) {
+private fun CameraMonitor(description: String, copy: DetectorCopy, scenes: SceneObservations,
+    onStreamState: (Boolean) -> Unit, onFailure: () -> Unit, onStopped: () -> Unit) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val previewView = remember(context) {
@@ -136,7 +151,7 @@ private fun CameraMonitor(description: String, copy: DetectorCopy,
             scaleType = PreviewView.ScaleType.FILL_CENTER
         }
     }
-    val controller = remember(context) { CameraDetectionController(context) }
+    val controller = remember(context) { CameraDetectionController(context, scenes) }
     val state by controller.state.collectAsStateWithLifecycle()
     var threshold by rememberSaveable { mutableStateOf(0.25f) }
     controller.confidenceThreshold = threshold
@@ -225,6 +240,7 @@ private fun CameraMonitor(description: String, copy: DetectorCopy,
             analysis.clearAnalyzer()
             provider?.unbind(preview, analysis)
             controller.close()
+            onStopped()
         }
     }
 }

@@ -9,6 +9,7 @@ import androidx.camera.core.ImageProxy
 import java.io.FileNotFoundException
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -29,7 +30,8 @@ data class DetectorState(
 )
 
 /** One foreground camera session, one analyzer worker, and one ONNX session. */
-class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, AutoCloseable {
+class CameraDetectionController(context: Context, private val scenes: SceneObservations) : ImageAnalysis.Analyzer, AutoCloseable {
+    private val sessionId = nextSessionId.incrementAndGet()
     private val appContext = context.applicationContext
     private val worker = Executors.newSingleThreadExecutor { job -> Thread(job, "vision-onnx-analysis") }
     private val stopped = AtomicBoolean(false)
@@ -49,6 +51,7 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
     val executor get() = worker
 
     fun start() {
+        scenes.start(sessionId)
         worker.execute {
             if (stopped.get()) return@execute
             try {
@@ -62,6 +65,7 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
                 Log.i(TAG, "model loaded; CPU inference ready")
             } catch (error: Throwable) {
                 Log.e(TAG, "model load failed", error)
+                scenes.stop(sessionId)
                 if (!stopped.get()) mutableState.value = DetectorState(
                     phase = if (error is FileNotFoundException) DetectorPhase.MissingModel else DetectorPhase.Error,
                     detail = error.javaClass.simpleName)
@@ -86,6 +90,7 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
             lastStartNs = nowNs
             val power = powerMonitor.snapshot()
             if ((power.thermalStatus ?: 0) >= PowerManager.THERMAL_STATUS_MODERATE) {
+                scenes.clear(sessionId)
                 skipped++
                 mutableState.value = mutableState.value.copy(phase = DetectorPhase.Degraded,
                     detections = emptyList(), skipped = skipped, power = power,
@@ -102,6 +107,10 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
             val captureAge = (end - timestampNs) / 1_000_000.0
             val age = captureAge.takeIf { it in 0.0..10_000.0 }
             val degraded = frameMs > MAX_FRAME_MS || (age != null && age > MAX_CAPTURE_AGE_MS)
+            if (degraded) scenes.clear(sessionId)
+            else scenes.publish(sessionId, boxes,
+                capturedAtMs = age?.let { SystemClock.elapsedRealtime() - it.toLong() } ?: SystemClock.elapsedRealtime(),
+                processedAtMs = SystemClock.elapsedRealtime())
             mutableState.value = DetectorState(
                 phase = if (degraded) DetectorPhase.Degraded else DetectorPhase.Running,
                 detections = if (degraded) emptyList() else boxes,
@@ -122,6 +131,7 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
             }
         } catch (error: Throwable) {
             Log.e(TAG, "analysis failed", error)
+            scenes.stop(sessionId)
             if (!stopped.get()) mutableState.value = mutableState.value.copy(phase = DetectorPhase.Error,
                 detections = emptyList(), detail = error.javaClass.simpleName)
             try { detector?.close() } catch (closeError: Throwable) { Log.e(TAG, "detector close failed", closeError) }
@@ -133,6 +143,7 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
 
     override fun close() {
         if (!stopped.compareAndSet(false, true)) return
+        scenes.stop(sessionId)
         mutableState.value = mutableState.value.copy(phase = DetectorPhase.Stopped, detections = emptyList())
         worker.execute {
             try { detector?.close() } catch (error: Throwable) { Log.e(TAG, "detector close failed", error) }
@@ -145,6 +156,7 @@ class CameraDetectionController(context: Context) : ImageAnalysis.Analyzer, Auto
 
     companion object {
         private const val TAG = "VisionDetector"
+        private val nextSessionId = AtomicLong()
         private const val MIN_INTERVAL_NS = 500_000_000L // 2 Hz after Samsung measured ~200 ms full-frame processing.
         private const val MAX_FRAME_MS = 750.0
         private const val MAX_CAPTURE_AGE_MS = 1_000.0

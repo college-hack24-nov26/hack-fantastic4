@@ -11,16 +11,22 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -29,6 +35,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.vision.app.settings.UiLanguage
+import com.vision.app.detector.SceneObservations
 import com.vision.app.ui.VisionStrings
 import com.vision.app.ui.components.VisionButton
 import com.vision.app.ui.components.VisionCard
@@ -37,6 +44,7 @@ import com.vision.app.ui.theme.VisionColors
 import com.vision.app.voice.AssistantPhase
 import com.vision.app.voice.ModelPhase
 import com.vision.app.voice.VoiceAssistantSession
+import com.vision.app.domain.voice.CameraRuntimeStatus
 
 @Composable
 fun VoiceAssistantPanel(
@@ -45,17 +53,24 @@ fun VoiceAssistantPanel(
     speechRate: Float,
     onLanguageChange: (UiLanguage) -> Unit,
     onRateChange: (Float) -> Unit,
+    scenes: SceneObservations,
+    automaticAnnouncements: Boolean,
+    onAutomaticAnnouncementsChange: (Boolean) -> Unit,
+    session: VoiceAssistantSession,
+    cameraStatus: CameraRuntimeStatus,
 ) {
     val context = LocalContext.current
     val activity = context as Activity
     val lifecycleOwner = LocalLifecycleOwner.current
-    val session = remember(context) { VoiceAssistantSession(context) }
+    LaunchedEffect(session, language, speechRate, automaticAnnouncements) {
+        session.updateSpeechSettings(language, speechRate, automaticAnnouncements)
+    }
     val state by session.state.collectAsStateWithLifecycle()
     val history = remember(context) { context.getSharedPreferences("microphone_permission_state", Activity.MODE_PRIVATE) }
     var requestedBefore by rememberSaveable { mutableStateOf(history.getBoolean("requested", false)) }
     var permissionGranted by remember { mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) }
     var typedMessage by rememberSaveable { mutableStateOf("") }
-    DisposableEffect(session) { onDispose { session.close() } }
+    LaunchedEffect(session, typedMessage) { session.updateUserComposing(typedMessage.isNotBlank()) }
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -89,6 +104,20 @@ fun VoiceAssistantPanel(
     VisionCard {
         Text(strings.voiceAssistantTitle, style = MaterialTheme.typography.titleLarge)
         Text(strings.voiceAssistantNote, style = MaterialTheme.typography.bodyMedium, color = VisionColors.MutedCream)
+        Text(when (cameraStatus) {
+            CameraRuntimeStatus.Off -> strings.cameraStopped
+            CameraRuntimeStatus.Starting -> strings.cameraStarting
+            CameraRuntimeStatus.Active -> strings.cameraActive
+            CameraRuntimeStatus.Failed -> strings.cameraUnavailable
+        }, style = MaterialTheme.typography.bodyLarge)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(strings.automaticAnnouncements, style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f))
+            Switch(checked = automaticAnnouncements, onCheckedChange = onAutomaticAnnouncementsChange,
+                modifier = Modifier.semantics { contentDescription = strings.automaticAnnouncements })
+        }
+        Text(strings.automaticAnnouncementsNote, style = MaterialTheme.typography.bodyMedium,
+            color = VisionColors.MutedCream)
         Text(when (state.modelPhase) {
             ModelPhase.Missing -> strings.modelMissing
             ModelPhase.Loading -> strings.modelLoading
@@ -102,7 +131,10 @@ fun VoiceAssistantPanel(
             when (state.phase) {
                 AssistantPhase.Idle -> strings.voiceIdle
                 AssistantPhase.Listening -> strings.voiceListening
+                AssistantPhase.Recognizing -> strings.voiceRecognizing
                 AssistantPhase.Processing -> strings.voiceProcessing
+                AssistantPhase.ExecutingCommand -> strings.voiceExecuting
+                AssistantPhase.GeneratingResponse -> strings.voiceGenerating
                 AssistantPhase.Speaking -> strings.voiceSpeaking
                 AssistantPhase.Error -> when (state.recognitionError) {
                     SpeechRecognizer.ERROR_NO_MATCH -> strings.voiceNoMatch
@@ -125,7 +157,7 @@ fun VoiceAssistantPanel(
                     context.startActivity(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}")))
                 })
             }
-            if (state.phase == AssistantPhase.Listening) {
+            if (state.phase == AssistantPhase.Listening || state.phase == AssistantPhase.Recognizing) {
                 VisionButton(strings.stopListening, session::stopListening)
             } else if (!blocked) {
                 VisionButton(if (permissionGranted) strings.startListening else strings.allowMicrophone, ::beginListening)
@@ -139,6 +171,10 @@ fun VoiceAssistantPanel(
         if (state.reply.isNotBlank()) {
             Text(strings.replyLabel, style = MaterialTheme.typography.titleLarge)
             Text(state.reply, style = MaterialTheme.typography.bodyLarge)
+        }
+        if (state.recentObservation.isNotBlank()) {
+            Text(strings.recentObservation, style = MaterialTheme.typography.titleLarge)
+            Text(state.recentObservation, style = MaterialTheme.typography.bodyLarge)
         }
         OutlinedTextField(
             value = typedMessage,

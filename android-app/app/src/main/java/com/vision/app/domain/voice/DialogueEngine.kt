@@ -58,7 +58,7 @@ class DialogueEngine(private val clock: Clock = Clock.systemDefaultZone()) {
             }
             has(words, "help", "commands", "madad", "मदद") -> DialogueReply(help(hinglish))
             isVisualQuestion(words) ->
-                DialogueReply(if (hinglish) "Visual detection abhi available nahi hai. Main aas-paas ya raaste ki safety nahi bata sakta." else "Visual detection is not available yet. I cannot describe your surroundings or judge route safety.")
+                DialogueReply(if (hinglish) "Main sirf active camera ke recent experimental object guesses bata sakta hoon. Raaste ki safety verify nahi kar sakta." else "I can only describe recent experimental object guesses from an active camera. I cannot verify route safety.")
             else -> DialogueReply("", handled = false)
         }
         if (reply.handled && reply.speak && reply.text.isNotBlank()) lastReply = reply.text

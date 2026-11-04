@@ -36,6 +36,9 @@ data class VisionStrings(
     val importModel: String,
     val textInputLabel: String, val sendText: String, val voiceNoMatch: String, val voiceNoSpeech: String,
     val voiceLanguageMissing: String, val voiceServiceError: String,
+    val automaticAnnouncements: String, val automaticAnnouncementsNote: String,
+    val recentObservation: String,
+    val voiceRecognizing: String, val voiceExecuting: String, val voiceGenerating: String,
 ) {
     companion object {
         fun forLanguage(language: UiLanguage): VisionStrings = when (language) {
@@ -48,7 +51,7 @@ data class VisionStrings(
 private val englishStrings = VisionStrings(
     tagline = "Beyond sight, through intelligence.",
     splashIntro = "A voice-first companion for exploring your surroundings.",
-    splashNote = "This early build demonstrates the interface. Visual assistance is not active yet.",
+    splashNote = "Experimental camera object guesses are available. Do not use them for navigation or safety.",
     getStarted = "Get started", back = "Back", skip = "Skip", next = "Next", continueLabel = "Continue",
     onboarding = listOf(
         Triple("Carry Vision comfortably", "Keep your phone secure and its camera unobstructed when visual assistance becomes available.", "Camera setup and device support will be checked before use."),
@@ -83,7 +86,7 @@ private val englishStrings = VisionStrings(
     cameraStarting = "Starting camera…", cameraActive = "Camera active", cameraStopped = "Camera stopped",
     cameraUnavailable = "The rear camera could not start on this device.", stopCamera = "Stop camera", startCamera = "Start camera",
     cameraOnly = "Experimental object detection is active only on the live camera screen. Safety warnings are not active.",
-    voiceAssistantTitle = "Offline voice assistant", voiceAssistantNote = "Time, date and settings work without a model. Import the optional local model for conversation. Visual understanding is not active.",
+    voiceAssistantTitle = "Offline voice assistant", voiceAssistantNote = "Time, date and settings work without a model. Import the optional local model for conversation. Camera descriptions use only experimental five-class detector guesses.",
     startListening = "Start listening", stopListening = "Stop listening", stopSpeaking = "Stop speaking",
     heardLabel = "You said", replyLabel = "Vision says", voiceIdle = "Ready for a command", voiceListening = "Listening…",
     voiceProcessing = "Processing…", voiceSpeaking = "Speaking…", voiceError = "Voice request failed. Try again.",
@@ -96,12 +99,16 @@ private val englishStrings = VisionStrings(
     voiceNoSpeech = "No speech was heard. Check the microphone and try again.",
     voiceLanguageMissing = "Offline recognition for this language is unavailable. Use a downloaded on-device language or type below.",
     voiceServiceError = "The on-device speech service failed. You can type below.",
+    automaticAnnouncements = "Automatic object announcements",
+    automaticAnnouncementsNote = "Off by default. Speaks only new, stable experimental guesses while camera monitoring runs.",
+    recentObservation = "Recent spoken observation",
+    voiceRecognizing = "Recognizing speech…", voiceExecuting = "Executing command…", voiceGenerating = "Generating offline response…",
 )
 
 private val hinglishStrings = VisionStrings(
     tagline = "Dekhne se aage, samajhne ki taraf.",
     splashIntro = "Aapke aas-paas ko samajhne ke liye voice-first companion.",
-    splashNote = "Yeh early build sirf interface dikhata hai. Visual help abhi active nahi hai.",
+    splashNote = "Experimental camera object guesses available hain. Navigation ya safety ke liye use na karein.",
     getStarted = "Shuru karein", back = "Peechhe", skip = "Skip karein", next = "Aage", continueLabel = "Aage badhein",
     onboarding = listOf(
         Triple("Phone aaram se rakhein", "Visual help aane par phone secure rakhein aur camera ko cover na karein.", "Use se pehle camera setup aur device support check hoga."),
@@ -136,7 +143,7 @@ private val hinglishStrings = VisionStrings(
     cameraStarting = "Camera shuru ho raha hai…", cameraActive = "Camera active hai", cameraStopped = "Camera band hai",
     cameraUnavailable = "Is device par rear camera shuru nahi ho saka.", stopCamera = "Camera band karein", startCamera = "Camera shuru karein",
     cameraOnly = "Experimental detection sirf live camera screen par chalti hai. Safety warnings active nahi hain.",
-    voiceAssistantTitle = "Offline voice assistant", voiceAssistantNote = "Time, date aur settings bina model ke chalti hain. Baat-cheet ke liye local model import karein. Visual samajh abhi active nahi hai.",
+    voiceAssistantTitle = "Offline voice assistant", voiceAssistantNote = "Time, date aur settings bina model ke chalti hain. Baat-cheet ke liye local model import karein. Camera descriptions sirf experimental five-class detector guesses se banti hain.",
     startListening = "Sunna shuru karein", stopListening = "Sunna band karein", stopSpeaking = "Bolna band karein",
     heardLabel = "Aapne kaha", replyLabel = "Vision ne kaha", voiceIdle = "Command ke liye ready", voiceListening = "Sun raha hoon…",
     voiceProcessing = "Samajh raha hoon…", voiceSpeaking = "Bol raha hoon…", voiceError = "Voice request fail hua. Dobara try karein.",
@@ -149,4 +156,8 @@ private val hinglishStrings = VisionStrings(
     voiceNoSpeech = "Awaaz sunai nahi di. Mic check karke dobara try karein.",
     voiceLanguageMissing = "Is language ka offline recognition available nahi hai. Downloaded on-device language use karein ya type karein.",
     voiceServiceError = "On-device speech service fail hui. Neeche type kar sakte hain.",
+    automaticAnnouncements = "Automatic object announcements",
+    automaticAnnouncementsNote = "Default off. Camera chalte waqt sirf naye, stable experimental guesses sunata hai.",
+    recentObservation = "Abhi boli gayi observation",
+    voiceRecognizing = "Awaaz samajh raha hoon…", voiceExecuting = "Command chala raha hoon…", voiceGenerating = "Offline jawab bana raha hoon…",
 )

@@ -24,7 +24,8 @@ class OfflineSpeechInput(private val context: Context) : AutoCloseable {
     val available: Boolean
         get() = Build.VERSION.SDK_INT >= 31 && SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
 
-    fun start(language: UiLanguage, onListening: () -> Unit, onResult: (SpeechResult) -> Unit, onError: (Int) -> Unit): Boolean {
+    fun start(language: UiLanguage, onListening: () -> Unit, onRecognizing: () -> Unit,
+        onResult: (SpeechResult) -> Unit, onError: (Int) -> Unit): Boolean {
         val onDeviceAvailable = available
         val locale = if (language == UiLanguage.Hinglish) "hi-IN" else "en-IN"
         Log.i(TAG, "start requestedLocale=$locale onDeviceAvailable=$onDeviceAvailable " +
@@ -53,7 +54,7 @@ class OfflineSpeechInput(private val context: Context) : AutoCloseable {
             }
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() {
-                if (token == generation) { speechEnded = true; Log.i(TAG, "onEndOfSpeech locale=$locale") }
+                if (token == generation) { speechEnded = true; Log.i(TAG, "onEndOfSpeech locale=$locale"); onRecognizing() }
             }
             override fun onError(error: Int) {
                 if (token == generation) {
